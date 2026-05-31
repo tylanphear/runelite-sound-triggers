@@ -344,9 +344,9 @@ public class TriggerPanel extends JPanel
 			NameMatchMode.values(), trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
 		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
 
-		section.add(makeRow("Name", field));
-		section.add(Box.createVerticalStrut(4));
 		section.add(makeRow("Match", matchBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Name", field));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -366,9 +366,9 @@ public class TriggerPanel extends JPanel
 			NameMatchMode.values(), trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
 		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
 
-		section.add(makeRow("Name", field));
-		section.add(Box.createVerticalStrut(4));
 		section.add(makeRow("Match", matchBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Name", field));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -407,7 +407,7 @@ public class TriggerPanel extends JPanel
 		JTextField thresholdField = new JTextField(
 			trigger.getStatThreshold() != null ? trigger.getStatThreshold().toString() : "");
 		styleTextField(thresholdField);
-		thresholdField.setToolTipText("The value to compare against (e.g. 50). Leave blank to disable.");
+		thresholdField.setToolTipText("The (absolute) value to compare against (e.g. 50). Leave blank to disable.");
 		bindNullableInt(thresholdField, trigger::setStatThreshold);
 
 		JTextField repeatField = new JTextField(
