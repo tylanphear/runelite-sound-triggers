@@ -27,14 +27,30 @@ public class SoundTrigger
 	/** Case-insensitive substring of chat message to match; null means match any message. */
 	private String chatPattern = null;
 
-	// PLAYER_SPAWN fields
-	/** Case-insensitive substring of player name to match; null means match any player. */
+	// PLAYER_SEEN fields
+	/** Player name to match; null means match any player. Interpreted per {@link #playerNameMatchMode}. */
 	private String playerName = null;
+	/** Whether {@link #playerName} is matched as a substring or exactly. */
+	private NameMatchMode playerNameMatchMode = NameMatchMode.CONTAINS;
 
-	// NPC_SPAWN fields
-	/** Case-insensitive substring of NPC name to match; null means match any NPC. */
+	// NPC_SEEN fields
+	/** NPC name to match; null means match any NPC. Interpreted per {@link #npcNameMatchMode}. */
 	private String npcName = null;
+	/** Whether {@link #npcName} is matched as a substring or exactly. */
+	private NameMatchMode npcNameMatchMode = NameMatchMode.CONTAINS;
 
 	// STATUS_EFFECT fields
 	private StatusEffectType statusEffectType = StatusEffectType.ANY;
+	private StatusEffectCondition statusEffectCondition = StatusEffectCondition.GAINED;
+
+	// PLAYER_STAT fields
+	private PlayerStat playerStat = PlayerStat.HEALTH;
+	private StatComparison statComparison = StatComparison.BELOW;
+	/** Threshold the stat is compared against (absolute value, in the stat's own units). */
+	private Integer statThreshold = null;
+	/**
+	 * Seconds between repeats while the condition holds. {@code null} or {@code 0}
+	 * means play once when the value crosses the threshold (edge-triggered).
+	 */
+	private Integer statRepeatSeconds = null;
 }

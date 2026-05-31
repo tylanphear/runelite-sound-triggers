@@ -6,10 +6,14 @@ import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
+import net.runelite.api.Skill;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.ItemSpawned;
 import net.runelite.api.events.NpcSpawned;
@@ -36,7 +40,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @PluginDescriptor(
@@ -74,10 +80,20 @@ public class SoundTriggersPlugin extends Plugin
 	private List<SoundTrigger> triggers = new ArrayList<>();
 	private int lastPoisonVarbit = 0;
 
+	/** Per-trigger runtime state for PLAYER_STAT triggers, keyed by trigger id. */
+	private final Map<String, StatTriggerState> statStates = new HashMap<>();
+	/**
+	 * Becomes {@code true} once stat baselines have been sampled after login.
+	 * Until then we prime each trigger's state without firing, so a condition
+	 * that was already true at login does not fire spuriously.
+	 */
+	private boolean statsPrimed = false;
+
 	@Override
 	protected void startUp()
 	{
 		lastPoisonVarbit = client.getVarpValue(VarPlayerID.POISON);
+		statsPrimed = false;
 		loadTriggers();
 
 		panel = new SoundTriggersPanel(this);
@@ -96,6 +112,8 @@ public class SoundTriggersPlugin extends Plugin
 	protected void shutDown()
 	{
 		saveTriggers();
+		statStates.clear();
+		statsPrimed = false;
 		SwingUtilities.invokeLater(() -> clientToolbar.removeNavigation(navButton));
 		panel = null;
 		navButton = null;
@@ -111,27 +129,10 @@ public class SoundTriggersPlugin extends Plugin
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (!trigger.isEnabled() || trigger.getType() != TriggerType.HITSPLAT)
+			if (TriggerMatcher.matchesHitsplat(trigger, amount, isLocalPlayer))
 			{
-				continue;
+				playTrigger(trigger);
 			}
-
-			if (trigger.getHitsplatValue() != null && trigger.getHitsplatValue() != amount)
-			{
-				continue;
-			}
-
-			HitsplatTarget target = trigger.getHitsplatTarget();
-			if (target == HitsplatTarget.SELF && !isLocalPlayer)
-			{
-				continue;
-			}
-			if (target == HitsplatTarget.OTHERS && isLocalPlayer)
-			{
-				continue;
-			}
-
-			playTrigger(trigger);
 		}
 	}
 
@@ -142,18 +143,10 @@ public class SoundTriggersPlugin extends Plugin
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (!trigger.isEnabled() || trigger.getType() != TriggerType.ITEM_DROP)
+			if (TriggerMatcher.matchesItem(trigger, itemName))
 			{
-				continue;
+				playTrigger(trigger);
 			}
-
-			if (trigger.getItemName() != null
-				&& !itemName.toLowerCase().contains(trigger.getItemName().toLowerCase()))
-			{
-				continue;
-			}
-
-			playTrigger(trigger);
 		}
 	}
 
@@ -164,18 +157,10 @@ public class SoundTriggersPlugin extends Plugin
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (!trigger.isEnabled() || trigger.getType() != TriggerType.CHAT_MESSAGE)
+			if (TriggerMatcher.matchesChat(trigger, message))
 			{
-				continue;
+				playTrigger(trigger);
 			}
-
-			if (trigger.getChatPattern() != null
-				&& !message.toLowerCase().contains(trigger.getChatPattern().toLowerCase()))
-			{
-				continue;
-			}
-
-			playTrigger(trigger);
 		}
 	}
 
@@ -192,18 +177,10 @@ public class SoundTriggersPlugin extends Plugin
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (!trigger.isEnabled() || trigger.getType() != TriggerType.PLAYER_SPAWN)
+			if (TriggerMatcher.matchesPlayerSpawn(trigger, name))
 			{
-				continue;
+				playTrigger(trigger);
 			}
-
-			if (trigger.getPlayerName() != null
-				&& (name == null || !name.toLowerCase().contains(trigger.getPlayerName().toLowerCase())))
-			{
-				continue;
-			}
-
-			playTrigger(trigger);
 		}
 	}
 
@@ -215,18 +192,10 @@ public class SoundTriggersPlugin extends Plugin
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (!trigger.isEnabled() || trigger.getType() != TriggerType.NPC_SPAWN)
+			if (TriggerMatcher.matchesNpcSpawn(trigger, name))
 			{
-				continue;
+				playTrigger(trigger);
 			}
-
-			if (trigger.getNpcName() != null
-				&& (name == null || !name.toLowerCase().contains(trigger.getNpcName().toLowerCase())))
-			{
-				continue;
-			}
-
-			playTrigger(trigger);
 		}
 	}
 
@@ -242,31 +211,100 @@ public class SoundTriggersPlugin extends Plugin
 		int oldValue = lastPoisonVarbit;
 		lastPoisonVarbit = newValue;
 
-		if (oldValue != 0 || newValue == 0)
+		boolean gained = oldValue == 0 && newValue != 0;
+		boolean lost = oldValue != 0 && newValue == 0;
+		if (!gained && !lost)
 		{
 			return;
 		}
 
-		boolean isVenom = newValue >= VENOM_VALUE_CUTOFF;
+		boolean isVenom = gained ? newValue >= VENOM_VALUE_CUTOFF : oldValue >= VENOM_VALUE_CUTOFF;
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (!trigger.isEnabled() || trigger.getType() != TriggerType.STATUS_EFFECT)
+			if (TriggerMatcher.matchesStatusEffect(trigger, gained, lost, isVenom))
+			{
+				playTrigger(trigger);
+			}
+		}
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		// Re-prime baselines whenever we (re)enter the world, so leaving and
+		// returning (logout, hop, disconnect) does not fire on a condition that
+		// was already true on arrival.
+		if (event.getGameState() != GameState.LOGGED_IN)
+		{
+			statsPrimed = false;
+		}
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		if (client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		boolean prime = !statsPrimed;
+		long now = System.currentTimeMillis();
+
+		for (SoundTrigger trigger : new ArrayList<>(triggers))
+		{
+			if (trigger.getType() != TriggerType.PLAYER_STAT)
 			{
 				continue;
 			}
 
-			StatusEffectType effectType = trigger.getStatusEffectType();
-			if (effectType == StatusEffectType.POISON && isVenom)
-			{
-				continue;
-			}
-			if (effectType == StatusEffectType.VENOM && !isVenom)
-			{
-				continue;
-			}
+			Integer threshold = trigger.getStatThreshold();
+			boolean conditionMet = threshold != null
+				&& TriggerMatcher.matchesStatCondition(sampleStat(trigger.getPlayerStat()),
+					trigger.getStatComparison(), threshold);
 
-			playTrigger(trigger);
+			StatTriggerState prev = statStates.getOrDefault(
+				trigger.getId(), StatTriggerState.INITIAL);
+
+			TriggerMatcher.StatStep step = TriggerMatcher.stepStat(prev, conditionMet,
+				trigger.isEnabled(), trigger.getStatRepeatSeconds(), now, prime);
+
+			statStates.put(trigger.getId(), step.next);
+
+			if (step.fire)
+			{
+				playTrigger(trigger);
+			}
+		}
+
+		// Drop runtime state for triggers that no longer exist.
+		if (statStates.size() > triggers.size())
+		{
+			statStates.keySet().removeIf(id -> triggers.stream()
+				.noneMatch(t -> t.getId().equals(id)));
+		}
+
+		statsPrimed = true;
+	}
+
+	/** Returns the stat's current value on the same 0&ndash;100 / points scale the player sees. */
+	private int sampleStat(PlayerStat stat)
+	{
+		switch (stat)
+		{
+			case HEALTH:
+				return client.getBoostedSkillLevel(Skill.HITPOINTS);
+			case PRAYER:
+				return client.getBoostedSkillLevel(Skill.PRAYER);
+			case RUN_ENERGY:
+				// getEnergy() is 0–10000 (one decimal of precision).
+				return client.getEnergy() / 100;
+			case SPECIAL_ATTACK:
+				// SA_ENERGY varp is 0–1000.
+				return client.getVarpValue(VarPlayerID.SA_ENERGY) / 10;
+			default:
+				return 0;
 		}
 	}
 

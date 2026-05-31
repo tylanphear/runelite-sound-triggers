@@ -14,6 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
@@ -25,6 +26,9 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.FontMetrics;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -135,20 +139,13 @@ public class TriggerPanel extends JPanel
 			}
 		});
 		headerNameField.addActionListener(e -> headerNameField.transferFocus());
-		headerNameField.getDocument().addDocumentListener(new DocumentListener()
+		headerNameField.getDocument().addDocumentListener(simpleListener(() ->
 		{
-			private void update()
-			{
-				String text = headerNameField.getText();
-				trigger.setName(PLACEHOLDER.equals(text) ? "" : text);
-				plugin.saveTriggers();
-				headerNameField.revalidate();
-			}
-
-			@Override public void insertUpdate(DocumentEvent e) { update(); }
-			@Override public void removeUpdate(DocumentEvent e) { update(); }
-			@Override public void changedUpdate(DocumentEvent e) { update(); }
-		});
+			String text = headerNameField.getText();
+			trigger.setName(PLACEHOLDER.equals(text) ? "" : text);
+			plugin.saveTriggers();
+			headerNameField.revalidate();
+		}));
 
 		JButton deleteButton = new JButton("✕");
 		deleteButton.setFont(deleteButton.getFont().deriveFont(9f));
@@ -226,12 +223,14 @@ public class TriggerPanel extends JPanel
 		JPanel hitsplatSection = buildHitsplatSection();
 		JPanel itemSection = buildItemSection();
 		JPanel chatSection = buildChatSection();
-		JPanel playerSpawnSection = buildPlayerSpawnSection();
-		JPanel npcSpawnSection = buildNpcSpawnSection();
+		JPanel playerSeenSection = buildPlayerSeenSection();
+		JPanel npcSeenSection = buildNpcSeenSection();
 		JPanel statusEffectSection = buildStatusEffectSection();
+		JPanel playerStatSection = buildPlayerStatSection();
 
 		updateSectionVisibility(hitsplatSection, itemSection, chatSection,
-			playerSpawnSection, npcSpawnSection, statusEffectSection, trigger.getType());
+			playerSeenSection, npcSeenSection, statusEffectSection, playerStatSection,
+			trigger.getType());
 
 		typeBox.addActionListener(e ->
 		{
@@ -243,29 +242,32 @@ public class TriggerPanel extends JPanel
 			trigger.setType(selected);
 			plugin.saveTriggers();
 			updateSectionVisibility(hitsplatSection, itemSection, chatSection,
-				playerSpawnSection, npcSpawnSection, statusEffectSection, selected);
+				playerSeenSection, npcSeenSection, statusEffectSection, playerStatSection,
+				selected);
 			parentPanel.refreshLayout();
 		});
 
 		details.add(hitsplatSection);
 		details.add(itemSection);
 		details.add(chatSection);
-		details.add(playerSpawnSection);
-		details.add(npcSpawnSection);
+		details.add(playerSeenSection);
+		details.add(npcSeenSection);
 		details.add(statusEffectSection);
+		details.add(playerStatSection);
 
 		return details;
 	}
 
 	private void updateSectionVisibility(JPanel hitsplat, JPanel item, JPanel chat,
-		JPanel playerSpawn, JPanel npcSpawn, JPanel statusEffect, TriggerType type)
+		JPanel playerSeen, JPanel npcSeen, JPanel statusEffect, JPanel playerStat, TriggerType type)
 	{
 		hitsplat.setVisible(type == TriggerType.HITSPLAT);
 		item.setVisible(type == TriggerType.ITEM_DROP);
 		chat.setVisible(type == TriggerType.CHAT_MESSAGE);
-		playerSpawn.setVisible(type == TriggerType.PLAYER_SPAWN);
-		npcSpawn.setVisible(type == TriggerType.NPC_SPAWN);
+		playerSeen.setVisible(type == TriggerType.PLAYER_SEEN);
+		npcSeen.setVisible(type == TriggerType.NPC_SEEN);
 		statusEffect.setVisible(type == TriggerType.STATUS_EFFECT);
+		playerStat.setVisible(type == TriggerType.PLAYER_STAT);
 	}
 
 	// -------------------------------------------------------------------------
@@ -282,41 +284,10 @@ public class TriggerPanel extends JPanel
 			trigger.getHitsplatValue() != null ? trigger.getHitsplatValue().toString() : "");
 		styleTextField(valueField);
 		valueField.setToolTipText("Leave blank to match any hitsplat value");
-		valueField.getDocument().addDocumentListener(new DocumentListener()
-		{
-			private void update()
-			{
-				String text = valueField.getText().trim();
-				if (text.isEmpty())
-				{
-					trigger.setHitsplatValue(null);
-				}
-				else
-				{
-					try
-					{
-						trigger.setHitsplatValue(Integer.parseInt(text));
-					}
-					catch (NumberFormatException ignored)
-					{
-						return;
-					}
-				}
-				plugin.saveTriggers();
-			}
+		bindNullableInt(valueField, trigger::setHitsplatValue);
 
-			@Override public void insertUpdate(DocumentEvent e) { update(); }
-			@Override public void removeUpdate(DocumentEvent e) { update(); }
-			@Override public void changedUpdate(DocumentEvent e) { update(); }
-		});
-
-		JComboBox<HitsplatTarget> targetBox = new JComboBox<>(HitsplatTarget.values());
-		targetBox.setSelectedItem(trigger.getHitsplatTarget());
-		targetBox.addActionListener(e ->
-		{
-			trigger.setHitsplatTarget((HitsplatTarget) targetBox.getSelectedItem());
-			plugin.saveTriggers();
-		});
+		JComboBox<HitsplatTarget> targetBox = makeEnumCombo(
+			HitsplatTarget.values(), trigger.getHitsplatTarget(), trigger::setHitsplatTarget);
 
 		section.add(makeRow("Value", valueField));
 		section.add(Box.createVerticalStrut(4));
@@ -335,19 +306,7 @@ public class TriggerPanel extends JPanel
 		JTextField field = new JTextField(trigger.getItemName() != null ? trigger.getItemName() : "");
 		styleTextField(field);
 		field.setToolTipText("Leave blank to match any item name");
-		field.getDocument().addDocumentListener(new DocumentListener()
-		{
-			private void update()
-			{
-				String text = field.getText().trim();
-				trigger.setItemName(text.isEmpty() ? null : text);
-				plugin.saveTriggers();
-			}
-
-			@Override public void insertUpdate(DocumentEvent e) { update(); }
-			@Override public void removeUpdate(DocumentEvent e) { update(); }
-			@Override public void changedUpdate(DocumentEvent e) { update(); }
-		});
+		bindNullableText(field, trigger::setItemName);
 
 		section.add(makeRow("Item", field));
 		section.add(Box.createVerticalStrut(4));
@@ -363,26 +322,14 @@ public class TriggerPanel extends JPanel
 		JTextField field = new JTextField(trigger.getChatPattern() != null ? trigger.getChatPattern() : "");
 		styleTextField(field);
 		field.setToolTipText("Leave blank to match any chat message");
-		field.getDocument().addDocumentListener(new DocumentListener()
-		{
-			private void update()
-			{
-				String text = field.getText().trim();
-				trigger.setChatPattern(text.isEmpty() ? null : text);
-				plugin.saveTriggers();
-			}
-
-			@Override public void insertUpdate(DocumentEvent e) { update(); }
-			@Override public void removeUpdate(DocumentEvent e) { update(); }
-			@Override public void changedUpdate(DocumentEvent e) { update(); }
-		});
+		bindNullableText(field, trigger::setChatPattern);
 
 		section.add(makeRow("Pattern", field));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
 
-	private JPanel buildPlayerSpawnSection()
+	private JPanel buildPlayerSeenSection()
 	{
 		JPanel section = new JPanel();
 		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
@@ -391,26 +338,20 @@ public class TriggerPanel extends JPanel
 		JTextField field = new JTextField(trigger.getPlayerName() != null ? trigger.getPlayerName() : "");
 		styleTextField(field);
 		field.setToolTipText("Leave blank to match any player");
-		field.getDocument().addDocumentListener(new DocumentListener()
-		{
-			private void update()
-			{
-				String text = field.getText().trim();
-				trigger.setPlayerName(text.isEmpty() ? null : text);
-				plugin.saveTriggers();
-			}
+		bindNullableText(field, trigger::setPlayerName);
 
-			@Override public void insertUpdate(DocumentEvent e) { update(); }
-			@Override public void removeUpdate(DocumentEvent e) { update(); }
-			@Override public void changedUpdate(DocumentEvent e) { update(); }
-		});
+		JComboBox<NameMatchMode> matchBox = makeEnumCombo(
+			NameMatchMode.values(), trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
+		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
 
-		section.add(makeRow("Player", field));
+		section.add(makeRow("Name", field));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
 
-	private JPanel buildNpcSpawnSection()
+	private JPanel buildNpcSeenSection()
 	{
 		JPanel section = new JPanel();
 		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
@@ -419,21 +360,15 @@ public class TriggerPanel extends JPanel
 		JTextField field = new JTextField(trigger.getNpcName() != null ? trigger.getNpcName() : "");
 		styleTextField(field);
 		field.setToolTipText("Leave blank to match any NPC");
-		field.getDocument().addDocumentListener(new DocumentListener()
-		{
-			private void update()
-			{
-				String text = field.getText().trim();
-				trigger.setNpcName(text.isEmpty() ? null : text);
-				plugin.saveTriggers();
-			}
+		bindNullableText(field, trigger::setNpcName);
 
-			@Override public void insertUpdate(DocumentEvent e) { update(); }
-			@Override public void removeUpdate(DocumentEvent e) { update(); }
-			@Override public void changedUpdate(DocumentEvent e) { update(); }
-		});
+		JComboBox<NameMatchMode> matchBox = makeEnumCombo(
+			NameMatchMode.values(), trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
+		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
 
-		section.add(makeRow("NPC", field));
+		section.add(makeRow("Name", field));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -444,19 +379,51 @@ public class TriggerPanel extends JPanel
 		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
 		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-		JComboBox<StatusEffectType> effectBox = new JComboBox<>(StatusEffectType.values());
-		effectBox.setSelectedItem(trigger.getStatusEffectType());
-		effectBox.addActionListener(e ->
-		{
-			StatusEffectType selected = (StatusEffectType) effectBox.getSelectedItem();
-			if (selected != null)
-			{
-				trigger.setStatusEffectType(selected);
-				plugin.saveTriggers();
-			}
-		});
+		JComboBox<StatusEffectType> effectBox = makeEnumCombo(
+			StatusEffectType.values(), trigger.getStatusEffectType(), trigger::setStatusEffectType);
+
+		JComboBox<StatusEffectCondition> conditionBox = makeEnumCombo(
+			StatusEffectCondition.values(), trigger.getStatusEffectCondition(), trigger::setStatusEffectCondition);
 
 		section.add(makeRow("Effect", effectBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Condition", conditionBox));
+		section.add(Box.createVerticalStrut(4));
+		return section;
+	}
+
+	private JPanel buildPlayerStatSection()
+	{
+		JPanel section = new JPanel();
+		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+		JComboBox<PlayerStat> statBox = makeEnumCombo(
+			PlayerStat.values(), trigger.getPlayerStat(), trigger::setPlayerStat);
+
+		JComboBox<StatComparison> comparisonBox = makeEnumCombo(
+			StatComparison.values(), trigger.getStatComparison(), trigger::setStatComparison);
+
+		JTextField thresholdField = new JTextField(
+			trigger.getStatThreshold() != null ? trigger.getStatThreshold().toString() : "");
+		styleTextField(thresholdField);
+		thresholdField.setToolTipText("The value to compare against (e.g. 50). Leave blank to disable.");
+		bindNullableInt(thresholdField, trigger::setStatThreshold);
+
+		JTextField repeatField = new JTextField(
+			trigger.getStatRepeatSeconds() != null ? trigger.getStatRepeatSeconds().toString() : "");
+		styleTextField(repeatField);
+		repeatField.setToolTipText(
+			"Seconds between repeats while the condition holds. Leave blank to play once when crossing.");
+		bindNullableInt(repeatField, trigger::setStatRepeatSeconds);
+
+		section.add(makeRow("Stat", statBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("When", comparisonBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Value", thresholdField));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Repeat", repeatField));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -467,32 +434,54 @@ public class TriggerPanel extends JPanel
 
 	private JPanel buildSoundFileRow()
 	{
-		JPanel row = new JPanel(new BorderLayout(4, 0));
-		row.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+		JButton fileButton = new JButton();
+		fileButton.setFont(FontManager.getRunescapeSmallFont());
+		fileButton.setFocusPainted(false);
+		fileButton.setHorizontalAlignment(SwingConstants.LEFT);
 
-		JLabel label = makeFieldLabel("Sound");
-		label.setPreferredSize(new Dimension(42, 20));
+		Runnable refreshLabel = () ->
+		{
+			String path = trigger.getSoundPath();
+			if (path == null || path.isEmpty())
+			{
+				fileButton.setText("Choose a file to play");
+				fileButton.setToolTipText("No file selected");
+				return;
+			}
+			fileButton.setToolTipText(path);
+			int w = fileButton.getWidth();
+			if (w > 0)
+			{
+				FontMetrics fm = fileButton.getFontMetrics(fileButton.getFont());
+				int available = w - fileButton.getInsets().left - fileButton.getInsets().right - 2;
+				fileButton.setText(truncatePathLeft(path, fm, available));
+			}
+			else
+			{
+				fileButton.setText(path);
+			}
+		};
 
-		String savedPath = trigger.getSoundPath() != null ? trigger.getSoundPath() : "";
-		JTextField pathField = new JTextField(savedPath);
-		styleTextField(pathField);
-		pathField.setEditable(false);
-		pathField.setToolTipText(savedPath.isEmpty() ? "No file selected" : savedPath);
+		refreshLabel.run();
 
-		JButton browseButton = new JButton("…");
-		browseButton.setFont(browseButton.getFont().deriveFont(10f));
-		browseButton.setPreferredSize(new Dimension(28, 20));
-		browseButton.setFocusPainted(false);
-		browseButton.setToolTipText("Choose a WAV file");
-		browseButton.addActionListener(e ->
+		fileButton.addComponentListener(new ComponentAdapter()
+		{
+			@Override
+			public void componentResized(ComponentEvent e)
+			{
+				refreshLabel.run();
+			}
+		});
+
+		fileButton.addActionListener(e ->
 		{
 			JFileChooser chooser = new JFileChooser();
 			chooser.setDialogTitle("Select WAV Sound File");
 			chooser.setFileFilter(new FileNameExtensionFilter("WAV Audio (*.wav)", "wav"));
-			if (!savedPath.isEmpty())
+			String currentPath = trigger.getSoundPath();
+			if (currentPath != null && !currentPath.isEmpty())
 			{
-				File current = new File(savedPath);
+				File current = new File(currentPath);
 				if (current.getParentFile() != null)
 				{
 					chooser.setCurrentDirectory(current.getParentFile());
@@ -500,19 +489,39 @@ public class TriggerPanel extends JPanel
 			}
 			if (chooser.showOpenDialog(TriggerPanel.this) == JFileChooser.APPROVE_OPTION)
 			{
-				String path = chooser.getSelectedFile().getAbsolutePath();
-				trigger.setSoundPath(path);
-				pathField.setText(path);
-				pathField.setToolTipText(path);
+				trigger.setSoundPath(chooser.getSelectedFile().getAbsolutePath());
+				refreshLabel.run();
 				plugin.saveTriggers();
 			}
 		});
 
-		row.add(label, BorderLayout.WEST);
-		row.add(pathField, BorderLayout.CENTER);
-		row.add(browseButton, BorderLayout.EAST);
+		return makeRow("Sound", fileButton);
+	}
 
-		return row;
+	private static String truncatePathLeft(String path, FontMetrics fm, int maxWidth)
+	{
+		if (fm.stringWidth(path) <= maxWidth)
+		{
+			return path;
+		}
+		String sep = File.separator;
+		int start = 0;
+		while (true)
+		{
+			int next = path.indexOf(sep, start);
+			if (next < 0)
+			{
+				break;
+			}
+			String candidate = "..." + path.substring(next);
+			if (fm.stringWidth(candidate) <= maxWidth)
+			{
+				return candidate;
+			}
+			start = next + sep.length();
+		}
+		int lastSep = path.lastIndexOf(sep);
+		return lastSep >= 0 ? "..." + path.substring(lastSep) : path;
 	}
 
 	// -------------------------------------------------------------------------
@@ -591,5 +600,85 @@ public class TriggerPanel extends JPanel
 		field.setForeground(Color.WHITE);
 		field.setCaretColor(Color.WHITE);
 		field.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR));
+	}
+
+	/**
+	 * Wraps {@code onChange} in a {@link DocumentListener} that fires it on any
+	 * insert, remove, or content change — the three callbacks Swing splits an
+	 * edit into but which we always treat identically.
+	 */
+	private static DocumentListener simpleListener(Runnable onChange)
+	{
+		return new DocumentListener()
+		{
+			@Override public void insertUpdate(DocumentEvent e) { onChange.run(); }
+			@Override public void removeUpdate(DocumentEvent e) { onChange.run(); }
+			@Override public void changedUpdate(DocumentEvent e) { onChange.run(); }
+		};
+	}
+
+	/**
+	 * Binds a text field to a string setter: the trimmed text is passed through,
+	 * with blank mapped to {@code null} ("match any"), and saved on every edit.
+	 */
+	private void bindNullableText(JTextField field, java.util.function.Consumer<String> setter)
+	{
+		field.getDocument().addDocumentListener(simpleListener(() ->
+		{
+			String text = field.getText().trim();
+			setter.accept(text.isEmpty() ? null : text);
+			plugin.saveTriggers();
+		}));
+	}
+
+	/**
+	 * Binds a text field to an integer setter: blank maps to {@code null}, a valid
+	 * number is parsed and saved, and unparseable input is ignored so the user can
+	 * finish typing without the partial value being persisted.
+	 */
+	private void bindNullableInt(JTextField field, java.util.function.Consumer<Integer> setter)
+	{
+		field.getDocument().addDocumentListener(simpleListener(() ->
+		{
+			String text = field.getText().trim();
+			Integer value;
+			if (text.isEmpty())
+			{
+				value = null;
+			}
+			else
+			{
+				try
+				{
+					value = Integer.parseInt(text);
+				}
+				catch (NumberFormatException ignored)
+				{
+					return;
+				}
+			}
+			setter.accept(value);
+			plugin.saveTriggers();
+		}));
+	}
+
+	/**
+	 * Builds a combo box over an enum's values, pre-selects {@code current}, and
+	 * saves the chosen value through {@code setter} on every change.
+	 */
+	private <E> JComboBox<E> makeEnumCombo(E[] values, E current, java.util.function.Consumer<E> setter)
+	{
+		JComboBox<E> box = new JComboBox<>(values);
+		box.setSelectedItem(current);
+		box.addActionListener(e ->
+		{
+			int index = box.getSelectedIndex();
+			if (index >= 0)
+			{
+				setter.accept(box.getItemAt(index));
+				plugin.saveTriggers();
+			}
+		});
+		return box;
 	}
 }

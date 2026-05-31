@@ -5,9 +5,10 @@ public enum TriggerType
 	HITSPLAT("Hitsplat"),
 	ITEM_DROP("Item Drop"),
 	CHAT_MESSAGE("Chat Message"),
-	PLAYER_SPAWN("Player Appears"),
-	NPC_SPAWN("NPC Spawns"),
-	STATUS_EFFECT("Status Effect");
+	PLAYER_SEEN("Player Seen"),
+	NPC_SEEN("NPC Seen"),
+	STATUS_EFFECT("Status Effect"),
+	PLAYER_STAT("Player Stat");
 
 	private final String displayName;
 
