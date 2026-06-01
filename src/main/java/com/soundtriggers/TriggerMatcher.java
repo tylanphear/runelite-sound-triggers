@@ -20,7 +20,8 @@ final class TriggerMatcher
 	{
 	}
 
-	static boolean matchesHitsplat(SoundTrigger trigger, int amount, boolean isLocalPlayer)
+	static boolean matchesHitsplat(SoundTrigger trigger, int amount, int hitsplatType,
+		boolean isLocalPlayer, boolean isMine)
 	{
 		if (!trigger.isEnabled() || trigger.getType() != TriggerType.HITSPLAT)
 		{
@@ -32,12 +33,30 @@ final class TriggerMatcher
 			return false;
 		}
 
+		HitsplatKind kind = trigger.getHitsplatKind();
+		if (kind != null && !kind.matches(hitsplatType))
+		{
+			return false;
+		}
+
+		// Recipient: whom the hitsplat lands on (HitsplatApplied.getActor()).
 		HitsplatTarget target = trigger.getHitsplatTarget();
 		if (target == HitsplatTarget.SELF && !isLocalPlayer)
 		{
 			return false;
 		}
 		if (target == HitsplatTarget.OTHERS && isLocalPlayer)
+		{
+			return false;
+		}
+
+		// Source: who dealt the hitsplat (Hitsplat.isMine()).
+		HitsplatSource source = trigger.getHitsplatSource();
+		if (source == HitsplatSource.ME && !isMine)
+		{
+			return false;
+		}
+		if (source == HitsplatSource.OTHERS && isMine)
 		{
 			return false;
 		}
@@ -52,7 +71,7 @@ final class TriggerMatcher
 			return false;
 		}
 
-		return containsIgnoreCase(itemName, trigger.getItemName(), false);
+		return matches(itemName, trigger.getItemName(), trigger.getItemNameMatchMode());
 	}
 
 	static boolean matchesChat(SoundTrigger trigger, String message)

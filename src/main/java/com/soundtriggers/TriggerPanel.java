@@ -376,10 +376,14 @@ public class TriggerPanel extends JPanel
 
 		JTextField field = new JTextField(trigger.getItemName() != null ? trigger.getItemName() : "");
 		styleTextField(field);
-		field.setToolTipText("Leave blank to match any item name");
+		field.setToolTipText("Leave blank to match any item drop");
 		bindNullableText(field, trigger::setItemName);
 
-		section.add(makeRow("Item", field));
+		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getItemNameMatchMode(), trigger::setItemNameMatchMode);
+
+		section.add(makeRow("Name", field));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -411,9 +415,7 @@ public class TriggerPanel extends JPanel
 		field.setToolTipText("Leave blank to match any player");
 		bindNullableText(field, trigger::setPlayerName);
 
-		JComboBox<MatchMode> matchBox = makeEnumCombo(
-			MatchMode.values(), trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
-		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
+		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
 
 		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
@@ -433,9 +435,7 @@ public class TriggerPanel extends JPanel
 		field.setToolTipText("Leave blank to match any NPC");
 		bindNullableText(field, trigger::setNpcName);
 
-		JComboBox<MatchMode> matchBox = makeEnumCombo(
-			MatchMode.values(), trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
-		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
+		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
 
 		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
@@ -809,6 +809,13 @@ public class TriggerPanel extends JPanel
 			setter.accept(value);
 			plugin.saveTriggers();
 		}));
+	}
+
+	private JComboBox<MatchMode> makeMatchModeBox(MatchMode current, java.util.function.Consumer<MatchMode> setter)
+	{
+		JComboBox<MatchMode> box = makeEnumCombo(MatchMode.values(), current, setter);
+		box.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
+		return box;
 	}
 
 	/**

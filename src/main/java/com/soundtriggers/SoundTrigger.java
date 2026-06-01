@@ -31,6 +31,8 @@ public class SoundTrigger
 	// ITEM_DROP fields
 	/** Case-insensitive substring of item name to match; null means match any item. */
 	private String itemName = null;
+	/** Whether {@link #itemName} is matched as a substring or exactly. */
+	private MatchMode itemNameMatchMode = MatchMode.CONTAINS;
 
 	// CHAT_MESSAGE fields
 	/** Case-insensitive substring of chat message to match; null means match any message. */
