@@ -399,7 +399,11 @@ public class TriggerPanel extends JPanel
 		field.setToolTipText("Leave blank to match any chat message");
 		bindNullableText(field, trigger::setChatPattern);
 
+		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getChatPatternMatchMode(), trigger::setChatPatternMatchMode);
+
 		section.add(makeRow("Pattern", field));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}

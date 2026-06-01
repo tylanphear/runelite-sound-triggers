@@ -81,7 +81,7 @@ final class TriggerMatcher
 			return false;
 		}
 
-		return containsIgnoreCase(message, trigger.getChatPattern(), false);
+		return matches(message, trigger.getChatPattern(), trigger.getChatPatternMatchMode());
 	}
 
 	static boolean matchesPlayerSpawn(SoundTrigger trigger, String playerName)

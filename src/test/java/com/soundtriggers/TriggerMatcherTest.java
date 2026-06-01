@@ -117,6 +117,7 @@ public class TriggerMatcherTest
 	{
 		// Triggers persisted before the source filter existed deserialize with a null source.
 		SoundTrigger t = trigger(TriggerType.HITSPLAT);
+		t.setHitsplatTarget(HitsplatTarget.ANY);
 		t.setHitsplatSource(null);
 		assertTrue(TriggerMatcher.matchesHitsplat(t, 10, HitsplatID.DAMAGE_ME, true, true));
 		assertTrue(TriggerMatcher.matchesHitsplat(t, 10, HitsplatID.DAMAGE_OTHER, false, false));
@@ -146,6 +147,7 @@ public class TriggerMatcherTest
 	public void hitsplatKindCollapsesMeAndOtherAndColourVariants()
 	{
 		SoundTrigger t = trigger(TriggerType.HITSPLAT);
+		t.setHitsplatTarget(HitsplatTarget.ANY);
 		t.setHitsplatKind(HitsplatKind.DAMAGE);
 		assertTrue(TriggerMatcher.matchesHitsplat(t, 10, HitsplatID.DAMAGE_ME, true, true));
 		assertTrue(TriggerMatcher.matchesHitsplat(t, 10, HitsplatID.DAMAGE_OTHER, false, false));
@@ -166,10 +168,23 @@ public class TriggerMatcherTest
 	// ---- substring matchers (item / chat / player / npc) ------------------------
 
 	@Test
-	public void itemBlankFilterMatchesAnyDrop()
+	public void itemBlankFilterDoesNotFireByDefault()
 	{
-		// A blank item name means "fire on any drop", consistent with player/NPC seen.
+		// Default EXACT mode: blank filter = unconfigured, no fire.
 		SoundTrigger t = trigger(TriggerType.ITEM_DROP);
+		t.setItemName(null);
+		assertFalse(TriggerMatcher.matchesItem(t, "Dragon bones"));
+
+		t.setItemName("");
+		assertFalse(TriggerMatcher.matchesItem(t, "Dragon bones"));
+	}
+
+	@Test
+	public void itemBlankFilterWithContainsModeMatchesAnyDrop()
+	{
+		// CONTAINS + blank = deliberate "fire on any drop".
+		SoundTrigger t = trigger(TriggerType.ITEM_DROP);
+		t.setItemNameMatchMode(MatchMode.CONTAINS);
 		t.setItemName(null);
 		assertTrue(TriggerMatcher.matchesItem(t, "Dragon bones"));
 
@@ -181,6 +196,7 @@ public class TriggerMatcherTest
 	public void itemFilterIsCaseInsensitiveSubstring()
 	{
 		SoundTrigger t = trigger(TriggerType.ITEM_DROP);
+		t.setItemNameMatchMode(MatchMode.CONTAINS);
 		t.setItemName("bones");
 		assertTrue(TriggerMatcher.matchesItem(t, "Dragon BONES"));
 		assertFalse(TriggerMatcher.matchesItem(t, "Dragon dagger"));
@@ -201,13 +217,50 @@ public class TriggerMatcherTest
 	public void chatFilterIsCaseInsensitiveSubstring()
 	{
 		SoundTrigger t = trigger(TriggerType.CHAT_MESSAGE);
+		t.setChatPatternMatchMode(MatchMode.CONTAINS);
 		t.setChatPattern("level up");
 		assertTrue(TriggerMatcher.matchesChat(t, "Congratulations, you just advanced a LEVEL UP!"));
 		assertFalse(TriggerMatcher.matchesChat(t, "You feel something weird."));
 	}
 
 	@Test
-	public void playerSpawnFilterMatchesSubstring()
+	public void chatBlankFilterDoesNotFireByDefault()
+	{
+		// Default EXACT mode: blank pattern = unconfigured, no fire.
+		SoundTrigger t = trigger(TriggerType.CHAT_MESSAGE);
+		t.setChatPattern(null);
+		assertFalse(TriggerMatcher.matchesChat(t, "Anything at all."));
+
+		t.setChatPattern("");
+		assertFalse(TriggerMatcher.matchesChat(t, "Anything at all."));
+	}
+
+	@Test
+	public void chatBlankFilterWithContainsModeMatchesAnyMessage()
+	{
+		// CONTAINS + blank = deliberate "fire on any chat message".
+		SoundTrigger t = trigger(TriggerType.CHAT_MESSAGE);
+		t.setChatPatternMatchMode(MatchMode.CONTAINS);
+		t.setChatPattern(null);
+		assertTrue(TriggerMatcher.matchesChat(t, "Anything at all."));
+
+		t.setChatPattern("");
+		assertTrue(TriggerMatcher.matchesChat(t, "Anything at all."));
+	}
+
+	@Test
+	public void chatFilterExactMatchMode()
+	{
+		SoundTrigger t = trigger(TriggerType.CHAT_MESSAGE);
+		t.setChatPattern("You have been poisoned!");
+		t.setChatPatternMatchMode(MatchMode.EXACT);
+		assertTrue(TriggerMatcher.matchesChat(t, "You have been poisoned!"));
+		assertTrue(TriggerMatcher.matchesChat(t, "YOU HAVE BEEN POISONED!"));
+		assertFalse(TriggerMatcher.matchesChat(t, "You have been poisoned! Ouch."));
+	}
+
+	@Test
+	public void playerSpawnFilterIsCaseInsensitive()
 	{
 		SoundTrigger t = trigger(TriggerType.PLAYER_SEEN);
 		t.setPlayerName("zezima");
@@ -275,13 +328,15 @@ public class TriggerMatcherTest
 	@Test
 	public void spawnFilterWithNullNameDoesNotMatch()
 	{
-		// A null name can't satisfy a non-null filter, but matches when filter is null.
+		// A null actor name can't satisfy a non-null filter.
 		SoundTrigger filtered = trigger(TriggerType.NPC_SEEN);
 		filtered.setNpcName("goblin");
 		assertFalse(TriggerMatcher.matchesNpcSpawn(filtered, null));
 
+		// CONTAINS + blank filter fires on any NPC, even one with a null name.
 		SoundTrigger anyNpc = trigger(TriggerType.NPC_SEEN);
 		anyNpc.setNpcName(null);
+		anyNpc.setNpcNameMatchMode(MatchMode.CONTAINS);
 		assertTrue(TriggerMatcher.matchesNpcSpawn(anyNpc, null));
 	}
 

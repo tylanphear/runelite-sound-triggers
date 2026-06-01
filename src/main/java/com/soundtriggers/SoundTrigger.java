@@ -22,7 +22,7 @@ public class SoundTrigger
 	/** Exact damage value to match; null means match any value. */
 	private Integer hitsplatValue = null;
 	/** Whom the hitsplat lands on (recipient); {@code ANY} matches all. */
-	private HitsplatTarget hitsplatTarget = HitsplatTarget.ANY;
+	private HitsplatTarget hitsplatTarget = HitsplatTarget.SELF;
 	/** Who dealt the hitsplat (source); {@code ANY} matches all. */
 	private HitsplatSource hitsplatSource = HitsplatSource.ANY;
 	/** Which kind of hitsplat to match (damage, poison, heal, …); {@code ANY} matches all. */
@@ -32,23 +32,25 @@ public class SoundTrigger
 	/** Case-insensitive substring of item name to match; null means match any item. */
 	private String itemName = null;
 	/** Whether {@link #itemName} is matched as a substring or exactly. */
-	private MatchMode itemNameMatchMode = MatchMode.CONTAINS;
+	private MatchMode itemNameMatchMode = MatchMode.EXACT;
 
 	// CHAT_MESSAGE fields
 	/** Case-insensitive substring of chat message to match; null means match any message. */
 	private String chatPattern = null;
+	/** Whether {@link #chatPattern} is matched as a substring or exactly. */
+	private MatchMode chatPatternMatchMode = MatchMode.EXACT;
 
 	// PLAYER_SEEN fields
 	/** Player name to match; null means match any player. Interpreted per {@link #playerNameMatchMode}. */
 	private String playerName = null;
 	/** Whether {@link #playerName} is matched as a substring or exactly. */
-	private MatchMode playerNameMatchMode = MatchMode.CONTAINS;
+	private MatchMode playerNameMatchMode = MatchMode.EXACT;
 
 	// NPC_SEEN fields
 	/** NPC name to match; null means match any NPC. Interpreted per {@link #npcNameMatchMode}. */
 	private String npcName = null;
 	/** Whether {@link #npcName} is matched as a substring or exactly. */
-	private MatchMode npcNameMatchMode = MatchMode.CONTAINS;
+	private MatchMode npcNameMatchMode = MatchMode.EXACT;
 
 	// STATUS_EFFECT fields
 	private StatusEffectType statusEffectType = StatusEffectType.ANY;
