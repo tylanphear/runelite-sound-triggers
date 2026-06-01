@@ -79,6 +79,7 @@ public class SoundTriggersPlugin extends Plugin
 	private NavigationButton navButton;
 	private List<SoundTrigger> triggers = new ArrayList<>();
 	private int lastPoisonVarbit = 0;
+	private int lastDiseaseVarbit = 0;
 
 	/** Per-trigger runtime state for PLAYER_STAT triggers, keyed by trigger id. */
 	private final Map<String, StatTriggerState> statStates = new HashMap<>();
@@ -101,6 +102,7 @@ public class SoundTriggersPlugin extends Plugin
 	protected void startUp()
 	{
 		lastPoisonVarbit = client.getVarpValue(VarPlayerID.POISON);
+		lastDiseaseVarbit = client.getVarpValue(VarPlayerID.DISEASE);
 		statsPrimed = false;
 		loadTriggers();
 
@@ -220,15 +222,36 @@ public class SoundTriggersPlugin extends Plugin
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged event)
 	{
-		if (event.getVarpId() != VarPlayerID.POISON)
+		if (event.getVarpId() == VarPlayerID.POISON)
 		{
-			return;
+			int oldValue = lastPoisonVarbit;
+			int newValue = event.getValue();
+			lastPoisonVarbit = newValue;
+
+			// Above the cutoff the affliction is venom rather than ordinary poison;
+			// read it from whichever side of the transition is non-zero.
+			boolean wasVenom = oldValue >= VENOM_VALUE_CUTOFF;
+			boolean isVenom = newValue >= VENOM_VALUE_CUTOFF;
+			fireStatusEffect(isVenom || wasVenom ? StatusEffectType.VENOM : StatusEffectType.POISON,
+				oldValue, newValue);
 		}
+		else if (event.getVarpId() == VarPlayerID.DISEASE)
+		{
+			int oldValue = lastDiseaseVarbit;
+			int newValue = event.getValue();
+			lastDiseaseVarbit = newValue;
 
-		int newValue = event.getValue();
-		int oldValue = lastPoisonVarbit;
-		lastPoisonVarbit = newValue;
+			fireStatusEffect(StatusEffectType.DISEASE, oldValue, newValue);
+		}
+	}
 
+	/**
+	 * Fires any matching STATUS_EFFECT triggers for a 0&harr;non-zero transition of
+	 * the given affliction. A change that stays non-zero (e.g. poison ticking down,
+	 * or poison escalating into venom) is neither a gain nor a loss and is ignored.
+	 */
+	private void fireStatusEffect(StatusEffectType changed, int oldValue, int newValue)
+	{
 		boolean gained = oldValue == 0 && newValue != 0;
 		boolean lost = oldValue != 0 && newValue == 0;
 		if (!gained && !lost)
@@ -236,11 +259,9 @@ public class SoundTriggersPlugin extends Plugin
 			return;
 		}
 
-		boolean isVenom = gained ? newValue >= VENOM_VALUE_CUTOFF : oldValue >= VENOM_VALUE_CUTOFF;
-
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (TriggerMatcher.matchesStatusEffect(trigger, gained, lost, isVenom))
+			if (TriggerMatcher.matchesStatusEffect(trigger, changed, gained, lost))
 			{
 				playTrigger(trigger);
 			}
@@ -387,12 +408,28 @@ public class SoundTriggersPlugin extends Plugin
 
 		try
 		{
-			audioPlayer.play(file, trigger.getVolume() / 100.0f);
+			audioPlayer.play(file, volumePercentToGainDb(trigger.getVolume()));
 		}
 		catch (UnsupportedAudioFileException | IOException | LineUnavailableException e)
 		{
 			log.warn("Sound Triggers: failed to play {}", path, e);
 		}
+	}
+
+	/**
+	 * Converts a 0-100 volume percentage into the decibel gain expected by
+	 * {@link AudioPlayer#play}. The control is logarithmic: 100% maps to 0 dB
+	 * (unchanged), 50% to about -6 dB, and 0% is clamped to a large negative
+	 * value to effectively mute playback.
+	 */
+	private static float volumePercentToGainDb(int volumePercent)
+	{
+		float fraction = volumePercent / 100.0f;
+		if (fraction <= 0.0f)
+		{
+			return -80.0f;
+		}
+		return (float) (20.0 * Math.log10(fraction));
 	}
 
 	/** Draws a simple speaker icon programmatically — no external resource needed. */

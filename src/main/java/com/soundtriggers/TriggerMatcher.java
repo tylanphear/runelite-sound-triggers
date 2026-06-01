@@ -1,0 +1,229 @@
+package com.soundtriggers;
+
+/**
+ * The plugin's functional core: pure decisions about whether a given
+ * {@link SoundTrigger} should fire for a particular in-game event.
+ *
+ * <p>Nothing here touches a live {@code Client}, the event bus, or any other
+ * RuneLite service. The {@link SoundTriggersPlugin} handlers (the imperative
+ * shell) read the volatile bits out of each event — a damage amount, an item
+ * name, the local player flag — and pass those primitives in. That split keeps
+ * every matching rule unit-testable without booting a client.
+ *
+ * <p>Each {@code matches*} method also checks {@link SoundTrigger#isEnabled()}
+ * and {@link SoundTrigger#getType()}, so callers can simply iterate all
+ * triggers and fire on a {@code true} result.
+ */
+final class TriggerMatcher
+{
+	private TriggerMatcher()
+	{
+	}
+
+	static boolean matchesHitsplat(SoundTrigger trigger, int amount, boolean isLocalPlayer)
+	{
+		if (!trigger.isEnabled() || trigger.getType() != TriggerType.HITSPLAT)
+		{
+			return false;
+		}
+
+		if (trigger.getHitsplatValue() != null && trigger.getHitsplatValue() != amount)
+		{
+			return false;
+		}
+
+		HitsplatTarget target = trigger.getHitsplatTarget();
+		if (target == HitsplatTarget.SELF && !isLocalPlayer)
+		{
+			return false;
+		}
+		if (target == HitsplatTarget.OTHERS && isLocalPlayer)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	static boolean matchesItem(SoundTrigger trigger, String itemName)
+	{
+		if (!trigger.isEnabled() || trigger.getType() != TriggerType.ITEM_DROP)
+		{
+			return false;
+		}
+
+		return containsIgnoreCase(itemName, trigger.getItemName(), false);
+	}
+
+	static boolean matchesChat(SoundTrigger trigger, String message)
+	{
+		if (!trigger.isEnabled() || trigger.getType() != TriggerType.CHAT_MESSAGE)
+		{
+			return false;
+		}
+
+		return containsIgnoreCase(message, trigger.getChatPattern(), false);
+	}
+
+	static boolean matchesPlayerSpawn(SoundTrigger trigger, String playerName)
+	{
+		if (!trigger.isEnabled() || trigger.getType() != TriggerType.PLAYER_SEEN)
+		{
+			return false;
+		}
+
+		return matches(playerName, trigger.getPlayerName(), trigger.getPlayerNameMatchMode());
+	}
+
+	static boolean matchesNpcSpawn(SoundTrigger trigger, String npcName)
+	{
+		if (!trigger.isEnabled() || trigger.getType() != TriggerType.NPC_SEEN)
+		{
+			return false;
+		}
+
+		return matches(npcName, trigger.getNpcName(), trigger.getNpcNameMatchMode());
+	}
+
+	/**
+	 * @param changed the concrete effect whose state just flipped — one of
+	 *                {@link StatusEffectType#POISON}, {@link StatusEffectType#VENOM},
+	 *                or {@link StatusEffectType#DISEASE} (never {@code ANY})
+	 */
+	static boolean matchesStatusEffect(SoundTrigger trigger, StatusEffectType changed, boolean gained, boolean lost)
+	{
+		if (!trigger.isEnabled() || trigger.getType() != TriggerType.STATUS_EFFECT)
+		{
+			return false;
+		}
+
+		StatusEffectCondition condition = trigger.getStatusEffectCondition();
+		if (condition == null)
+		{
+			condition = StatusEffectCondition.GAINED;
+		}
+		if (condition == StatusEffectCondition.GAINED && !gained)
+		{
+			return false;
+		}
+		if (condition == StatusEffectCondition.LOST && !lost)
+		{
+			return false;
+		}
+
+		StatusEffectType effectType = trigger.getStatusEffectType();
+		if (effectType == null)
+		{
+			effectType = StatusEffectType.ANY;
+		}
+		return effectType == StatusEffectType.ANY || effectType == changed;
+	}
+
+	static boolean matchesStatCondition(int value, StatComparison comparison, int threshold)
+	{
+		if (comparison == StatComparison.ABOVE)
+		{
+			return value > threshold;
+		}
+		return value < threshold;
+	}
+
+	/**
+	 * Advances one {@link TriggerType#PLAYER_STAT} trigger by a single game tick.
+	 *
+	 * @param prev          the trigger's state from the previous tick (use
+	 *                      {@link StatTriggerState#INITIAL} the first time)
+	 * @param conditionMet  whether the stat currently satisfies the threshold
+	 * @param enabled       whether the trigger is enabled
+	 * @param repeatSeconds seconds between repeats while the condition holds;
+	 *                      {@code null} or {@code 0} means fire once on the edge
+	 * @param nowMs         current wall-clock time, in milliseconds
+	 * @param prime         {@code true} on the first tick after (re)login: record
+	 *                      the baseline without firing, so a condition already
+	 *                      true on arrival does not fire spuriously
+	 * @return the fire decision plus the trigger's next state
+	 */
+	static StatStep stepStat(StatTriggerState prev, boolean conditionMet, boolean enabled,
+		Integer repeatSeconds, long nowMs, boolean prime)
+	{
+		// On the first tick after login, only record the baseline.
+		if (prime)
+		{
+			return new StatStep(false, new StatTriggerState(conditionMet, 0L));
+		}
+
+		boolean fire = false;
+		long lastFiredMs = prev.lastFiredMs;
+
+		if (conditionMet && enabled)
+		{
+			if (!prev.conditionMet)
+			{
+				// Edge: the value just crossed the threshold.
+				fire = true;
+				lastFiredMs = nowMs;
+			}
+			else if (repeatSeconds != null && repeatSeconds > 0
+				&& nowMs - prev.lastFiredMs >= repeatSeconds * 1000L)
+			{
+				// Condition still holds and an interval has elapsed: repeat.
+				fire = true;
+				lastFiredMs = nowMs;
+			}
+		}
+
+		return new StatStep(fire, new StatTriggerState(conditionMet, lastFiredMs));
+	}
+
+	/**
+	 * {@code true} when {@code haystack} contains {@code filter} ignoring case.
+	 * A {@code null} or blank {@code filter} carries no information, so the result
+	 * is {@code allowNull} — letting each caller decide whether an unconfigured
+	 * filter means "match anything" or "trigger not set up, match nothing".
+	 */
+	private static boolean containsIgnoreCase(String haystack, String filter, boolean allowNull)
+	{
+		if (filter == null || filter.isEmpty())
+		{
+			return allowNull;
+		}
+		return haystack != null
+			&& haystack.toLowerCase().contains(filter.toLowerCase());
+	}
+
+	/**
+	 * Matches an in-game {@code name} against a {@code filter} per {@code mode}:
+	 * {@link MatchMode#CONTAINS} (the default for a {@code null} mode) does a
+	 * case-insensitive substring match, and {@link MatchMode#EXACT} requires
+	 * case-insensitive equality. A {@code null}/blank filter matches any name
+	 * under {@code CONTAINS} (a deliberate "anyone in view" alert) but matches
+	 * nothing under {@code EXACT}, where a blank means the trigger is unconfigured.
+	 */
+	private static boolean matches(String name, String filter, MatchMode mode)
+	{
+		if (mode == MatchMode.EXACT)
+		{
+			if (filter == null || filter.isEmpty())
+			{
+				return false;
+			}
+			return name != null && name.equalsIgnoreCase(filter);
+		}
+		return containsIgnoreCase(name, filter, mode == MatchMode.CONTAINS);
+	}
+
+	/** Result of advancing a {@link TriggerType#PLAYER_STAT} trigger one tick. */
+	static final class StatStep
+	{
+		/** Whether the trigger should fire this tick. */
+		final boolean fire;
+		/** The trigger's state to carry into the next tick. */
+		final StatTriggerState next;
+
+		StatStep(boolean fire, StatTriggerState next)
+		{
+			this.fire = fire;
+			this.next = next;
+		}
+	}
+}

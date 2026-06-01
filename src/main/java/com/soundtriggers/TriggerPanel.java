@@ -340,8 +340,8 @@ public class TriggerPanel extends JPanel
 		field.setToolTipText("Leave blank to match any player");
 		bindNullableText(field, trigger::setPlayerName);
 
-		JComboBox<NameMatchMode> matchBox = makeEnumCombo(
-			NameMatchMode.values(), trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
+		JComboBox<MatchMode> matchBox = makeEnumCombo(
+			MatchMode.values(), trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
 		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
 
 		section.add(makeRow("Match", matchBox));
@@ -362,8 +362,8 @@ public class TriggerPanel extends JPanel
 		field.setToolTipText("Leave blank to match any NPC");
 		bindNullableText(field, trigger::setNpcName);
 
-		JComboBox<NameMatchMode> matchBox = makeEnumCombo(
-			NameMatchMode.values(), trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
+		JComboBox<MatchMode> matchBox = makeEnumCombo(
+			MatchMode.values(), trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
 		matchBox.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
 
 		section.add(makeRow("Match", matchBox));

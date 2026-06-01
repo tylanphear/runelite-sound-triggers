@@ -1,15 +1,13 @@
 package com.soundtriggers;
 
-public enum StatusEffectType
+public enum StatusEffectCondition
 {
-	ANY("Any"),
-	POISON("Poison"),
-	VENOM("Venom"),
-	DISEASE("Disease");
+	GAINED("Gained"),
+	LOST("Lost");
 
 	private final String displayName;
 
-	StatusEffectType(String displayName)
+	StatusEffectCondition(String displayName)
 	{
 		this.displayName = displayName;
 	}

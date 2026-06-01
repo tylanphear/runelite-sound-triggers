@@ -31,13 +31,13 @@ public class SoundTrigger
 	/** Player name to match; null means match any player. Interpreted per {@link #playerNameMatchMode}. */
 	private String playerName = null;
 	/** Whether {@link #playerName} is matched as a substring or exactly. */
-	private NameMatchMode playerNameMatchMode = NameMatchMode.CONTAINS;
+	private MatchMode playerNameMatchMode = MatchMode.CONTAINS;
 
 	// NPC_SEEN fields
 	/** NPC name to match; null means match any NPC. Interpreted per {@link #npcNameMatchMode}. */
 	private String npcName = null;
 	/** Whether {@link #npcName} is matched as a substring or exactly. */
-	private NameMatchMode npcNameMatchMode = NameMatchMode.CONTAINS;
+	private MatchMode npcNameMatchMode = MatchMode.CONTAINS;
 
 	// STATUS_EFFECT fields
 	private StatusEffectType statusEffectType = StatusEffectType.ANY;
