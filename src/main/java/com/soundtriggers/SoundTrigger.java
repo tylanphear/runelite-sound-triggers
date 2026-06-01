@@ -11,13 +11,22 @@ public class SoundTrigger
 	private String name = "New Trigger";
 	private boolean enabled = true;
 	private TriggerType type = TriggerType.HITSPLAT;
+	private SoundSource soundSource = SoundSource.FILE;
 	private String soundPath = "";
-	private int volume = 100;
+	/** Volume level 0–4: 0 = muted, 4 = full. */
+	private int volume = 4;
+	private BuiltinSound builtinSound = BuiltinSound.TELEPORT_VWOOP;
+	private Integer customSoundId = null;
 
 	// HITSPLAT fields
 	/** Exact damage value to match; null means match any value. */
 	private Integer hitsplatValue = null;
+	/** Whom the hitsplat lands on (recipient); {@code ANY} matches all. */
 	private HitsplatTarget hitsplatTarget = HitsplatTarget.ANY;
+	/** Who dealt the hitsplat (source); {@code ANY} matches all. */
+	private HitsplatSource hitsplatSource = HitsplatSource.ANY;
+	/** Which kind of hitsplat to match (damage, poison, heal, …); {@code ANY} matches all. */
+	private HitsplatKind hitsplatKind = HitsplatKind.ANY;
 
 	// ITEM_DROP fields
 	/** Case-insensitive substring of item name to match; null means match any item. */

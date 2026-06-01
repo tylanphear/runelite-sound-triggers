@@ -6,6 +6,7 @@ import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
+import net.runelite.api.SoundEffectVolume;
 import net.runelite.api.GameState;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
@@ -133,13 +134,15 @@ public class SoundTriggersPlugin extends Plugin
 	public void onHitsplatApplied(HitsplatApplied event)
 	{
 		int amount = event.getHitsplat().getAmount();
+		int hitsplatType = event.getHitsplat().getHitsplatType();
+		boolean isMine = event.getHitsplat().isMine();
 		Actor actor = event.getActor();
 		boolean isLocalPlayer = (actor instanceof Player)
 			&& actor == client.getLocalPlayer();
 
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
-			if (TriggerMatcher.matchesHitsplat(trigger, amount, isLocalPlayer))
+			if (TriggerMatcher.matchesHitsplat(trigger, amount, hitsplatType, isLocalPlayer, isMine))
 			{
 				playTrigger(trigger);
 			}
@@ -393,6 +396,30 @@ public class SoundTriggersPlugin extends Plugin
 
 	private void playTrigger(SoundTrigger trigger)
 	{
+		int level = Math.min(4, Math.max(0, trigger.getVolume()));
+
+		if (trigger.getSoundSource() == SoundSource.BUILTIN)
+		{
+			BuiltinSound sound = trigger.getBuiltinSound();
+			if (sound == null)
+			{
+				return;
+			}
+			client.playSoundEffect(sound.getSoundId(), volumeLevelToSoundEffect(level));
+			return;
+		}
+
+		if (trigger.getSoundSource() == SoundSource.CUSTOM)
+		{
+			Integer soundId = trigger.getCustomSoundId();
+			if (soundId == null)
+			{
+				return;
+			}
+			client.playSoundEffect(soundId, volumeLevelToSoundEffect(level));
+			return;
+		}
+
 		String path = trigger.getSoundPath();
 		if (path == null || path.isEmpty())
 		{
@@ -408,7 +435,7 @@ public class SoundTriggersPlugin extends Plugin
 
 		try
 		{
-			audioPlayer.play(file, volumePercentToGainDb(trigger.getVolume()));
+			audioPlayer.play(file, volumeLevelToGainDb(level));
 		}
 		catch (UnsupportedAudioFileException | IOException | LineUnavailableException e)
 		{
@@ -416,20 +443,30 @@ public class SoundTriggersPlugin extends Plugin
 		}
 	}
 
-	/**
-	 * Converts a 0-100 volume percentage into the decibel gain expected by
-	 * {@link AudioPlayer#play}. The control is logarithmic: 100% maps to 0 dB
-	 * (unchanged), 50% to about -6 dB, and 0% is clamped to a large negative
-	 * value to effectively mute playback.
-	 */
-	private static float volumePercentToGainDb(int volumePercent)
+	/** Maps a 0–4 volume level to a dB gain for {@link AudioPlayer#play}. */
+	private static float volumeLevelToGainDb(int level)
 	{
-		float fraction = volumePercent / 100.0f;
-		if (fraction <= 0.0f)
+		switch (level)
 		{
-			return -80.0f;
+			case 0: return -80.0f;
+			case 1: return -20.0f;
+			case 2: return -12.0f;
+			case 3: return -6.0f;
+			default: return 0.0f;
 		}
-		return (float) (20.0 * Math.log10(fraction));
+	}
+
+	/** Maps a 0–4 volume level to a {@link net.runelite.api.SoundEffectVolume} constant. */
+	private static int volumeLevelToSoundEffect(int level)
+	{
+		switch (level)
+		{
+			case 0: return SoundEffectVolume.MUTED;
+			case 1: return SoundEffectVolume.LOW;
+			case 2: return SoundEffectVolume.MEDIUM_LOW;
+			case 3: return SoundEffectVolume.MEDIUM_HIGH;
+			default: return SoundEffectVolume.HIGH;
+		}
 	}
 
 	/** Draws a simple speaker icon programmatically — no external resource needed. */

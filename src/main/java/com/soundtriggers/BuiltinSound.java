@@ -1,0 +1,90 @@
+package com.soundtriggers;
+
+import net.runelite.api.SoundEffectID;
+
+public enum BuiltinSound
+{
+	// General
+	ATTACK_HIT("Attack Hit", SoundEffectID.ATTACK_HIT),
+	CLOSE_DOOR("Close Door", SoundEffectID.CLOSE_DOOR),
+	ITEM_DROP("Item Drop", SoundEffectID.ITEM_DROP),
+	ITEM_PICKUP("Item Pickup", SoundEffectID.ITEM_PICKUP),
+	MAGIC_SPLASH_BOING("Magic Splash", SoundEffectID.MAGIC_SPLASH_BOING),
+	NPC_TELEPORT_WOOSH("NPC Teleport", SoundEffectID.NPC_TELEPORT_WOOSH),
+	OPEN_DOOR("Open Door", SoundEffectID.OPEN_DOOR),
+	TAKE_DAMAGE_SPLAT("Take Damage", SoundEffectID.TAKE_DAMAGE_SPLAT),
+	TELEPORT_VWOOP("Teleport", SoundEffectID.TELEPORT_VWOOP),
+	UI_BOOP("UI Boop", SoundEffectID.UI_BOOP),
+	ZERO_DAMAGE_SPLAT("Zero Damage", SoundEffectID.ZERO_DAMAGE_SPLAT),
+
+	// Grand Exchange
+	GE_ADD_OFFER_DINGALING("GE: Add Offer", SoundEffectID.GE_ADD_OFFER_DINGALING),
+	GE_COIN_TINKLE("GE: Coin", SoundEffectID.GE_COIN_TINKLE),
+	GE_COLLECT_BLOOP("GE: Collect", SoundEffectID.GE_COLLECT_BLOOP),
+	GE_DECREMENT_PLOP("GE: Decrement", SoundEffectID.GE_DECREMENT_PLOP),
+	GE_INCREMENT_PLOP("GE: Increment", SoundEffectID.GE_INCREMENT_PLOP),
+
+	// Prayer
+	PRAYER_ACTIVATE_BURST_OF_STRENGTH("Prayer: Burst of Strength", SoundEffectID.PRAYER_ACTIVATE_BURST_OF_STRENGTH),
+	PRAYER_ACTIVATE_CHIVALRY("Prayer: Chivalry", SoundEffectID.PRAYER_ACTIVATE_CHIVALRY),
+	PRAYER_ACTIVATE_CLARITY_OF_THOUGHT("Prayer: Clarity of Thought", SoundEffectID.PRAYER_ACTIVATE_CLARITY_OF_THOUGHT),
+	PRAYER_ACTIVATE_DEADEYE("Prayer: Deadeye", SoundEffectID.PRAYER_ACTIVATE_DEADEYE),
+	PRAYER_ACTIVATE_EAGLE_EYE("Prayer: Eagle Eye", SoundEffectID.PRAYER_ACTIVATE_EAGLE_EYE),
+	PRAYER_ACTIVATE_HAWK_EYE("Prayer: Hawk Eye", SoundEffectID.PRAYER_ACTIVATE_HAWK_EYE),
+	PRAYER_ACTIVATE_IMPROVED_REFLEXES("Prayer: Improved Reflexes", SoundEffectID.PRAYER_ACTIVATE_IMPROVED_REFLEXES),
+	PRAYER_ACTIVATE_INCREDIBLE_REFLEXES("Prayer: Incredible Reflexes", SoundEffectID.PRAYER_ACTIVATE_INCREDIBLE_REFLEXES),
+	PRAYER_ACTIVATE_MYSTIC_LORE("Prayer: Mystic Lore", SoundEffectID.PRAYER_ACTIVATE_MYSTIC_LORE),
+	PRAYER_ACTIVATE_MYSTIC_MIGHT("Prayer: Mystic Might", SoundEffectID.PRAYER_ACTIVATE_MYSTIC_MIGHT),
+	PRAYER_ACTIVATE_MYSTIC_VIGOUR("Prayer: Mystic Vigour", SoundEffectID.PRAYER_ACTIVATE_MYSTIC_VIGOUR),
+	PRAYER_ACTIVATE_MYSTIC_WILL_AUGURY("Prayer: Augury", SoundEffectID.PRAYER_ACTIVATE_MYSTIC_WILL_AUGURY),
+	PRAYER_ACTIVATE_PIETY("Prayer: Piety", SoundEffectID.PRAYER_ACTIVATE_PIETY),
+	PRAYER_ACTIVATE_PROTECT_FROM_MAGIC("Prayer: Protect from Magic", SoundEffectID.PRAYER_ACTIVATE_PROTECT_FROM_MAGIC),
+	PRAYER_ACTIVATE_PROTECT_FROM_MELEE("Prayer: Protect from Melee", SoundEffectID.PRAYER_ACTIVATE_PROTECT_FROM_MELEE),
+	PRAYER_ACTIVATE_PROTECT_FROM_MISSILES("Prayer: Protect from Missiles", SoundEffectID.PRAYER_ACTIVATE_PROTECT_FROM_MISSILES),
+	PRAYER_ACTIVATE_PROTECT_ITEM("Prayer: Protect Item", SoundEffectID.PRAYER_ACTIVATE_PROTECT_ITEM),
+	PRAYER_ACTIVATE_RAPID_HEAL("Prayer: Rapid Heal", SoundEffectID.PRAYER_ACTIVATE_RAPID_HEAL),
+	PRAYER_ACTIVATE_RAPID_RESTORE_PRESERVE("Prayer: Preserve", SoundEffectID.PRAYER_ACTIVATE_RAPID_RESTORE_PRESERVE),
+	PRAYER_ACTIVATE_REDEMPTION("Prayer: Redemption", SoundEffectID.PRAYER_ACTIVATE_REDEMPTION),
+	PRAYER_ACTIVATE_RETRIBUTION("Prayer: Retribution", SoundEffectID.PRAYER_ACTIVATE_RETRIBUTION),
+	PRAYER_ACTIVATE_ROCK_SKIN("Prayer: Rock Skin", SoundEffectID.PRAYER_ACTIVATE_ROCK_SKIN),
+	PRAYER_ACTIVATE_SHARP_EYE_RIGOUR("Prayer: Rigour", SoundEffectID.PRAYER_ACTIVATE_SHARP_EYE_RIGOUR),
+	PRAYER_ACTIVATE_SMITE("Prayer: Smite", SoundEffectID.PRAYER_ACTIVATE_SMITE),
+	PRAYER_ACTIVATE_STEEL_SKIN("Prayer: Steel Skin", SoundEffectID.PRAYER_ACTIVATE_STEEL_SKIN),
+	PRAYER_ACTIVATE_SUPERHUMAN_STRENGTH("Prayer: Superhuman Strength", SoundEffectID.PRAYER_ACTIVATE_SUPERHUMAN_STRENGTH),
+	PRAYER_ACTIVATE_THICK_SKIN("Prayer: Thick Skin", SoundEffectID.PRAYER_ACTIVATE_THICK_SKIN),
+	PRAYER_ACTIVATE_ULTIMATE_STRENGTH("Prayer: Ultimate Strength", SoundEffectID.PRAYER_ACTIVATE_ULTIMATE_STRENGTH),
+	PRAYER_DEACTIVE_VWOOP("Prayer: Deactivate", SoundEffectID.PRAYER_DEACTIVE_VWOOP),
+	PRAYER_DEPLETE_TWINKLE("Prayer: Deplete", SoundEffectID.PRAYER_DEPLETE_TWINKLE),
+
+	// Skilling
+	BURY_BONES("Bury Bones", SoundEffectID.BURY_BONES),
+	COOK_WOOSH("Cooking", SoundEffectID.COOK_WOOSH),
+	FIRE_WOOSH("Fire Spell", SoundEffectID.FIRE_WOOSH),
+	MINING_TINK("Mining", SoundEffectID.MINING_TINK),
+	PICK_PLANT_BLOOP("Pick Plant", SoundEffectID.PICK_PLANT_BLOOP),
+	SMITH_ANVIL_TINK("Smithing (Tink)", SoundEffectID.SMITH_ANVIL_TINK),
+	SMITH_ANVIL_TONK("Smithing (Tonk)", SoundEffectID.SMITH_ANVIL_TONK),
+	TINDER_STRIKE("Firemaking", SoundEffectID.TINDER_STRIKE),
+	TREE_CHOP("Woodcutting", SoundEffectID.TREE_CHOP),
+	TREE_FALLING("Tree Falling", SoundEffectID.TREE_FALLING);
+
+	private final String displayName;
+	private final int soundId;
+
+	BuiltinSound(String displayName, int soundId)
+	{
+		this.displayName = displayName;
+		this.soundId = soundId;
+	}
+
+	public int getSoundId()
+	{
+		return soundId;
+	}
+
+	@Override
+	public String toString()
+	{
+		return displayName;
+	}
+}

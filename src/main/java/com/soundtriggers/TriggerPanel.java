@@ -15,6 +15,7 @@ import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
@@ -115,7 +116,10 @@ public class TriggerPanel extends JPanel
 		headerNameField.setCaretColor(Color.WHITE);
 		headerNameField.setBorder(BorderFactory.createEmptyBorder());
 		headerNameField.setFont(FontManager.getRunescapeSmallFont());
-		headerNameField.setToolTipText("Click to rename this trigger");
+		headerNameField.setToolTipText("Double-click to rename this trigger");
+		// The field is read-only until the user double-clicks it (see below); a
+		// single click toggles expand/collapse like the rest of the header.
+		headerNameField.setEditable(false);
 		headerNameField.addFocusListener(new FocusAdapter()
 		{
 			@Override
@@ -136,6 +140,9 @@ public class TriggerPanel extends JPanel
 					headerNameField.setText(PLACEHOLDER);
 					headerNameField.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 				}
+				// Leaving the field returns it to read-only so the next single
+				// click toggles expand/collapse again rather than editing.
+				headerNameField.setEditable(false);
 			}
 		});
 		headerNameField.addActionListener(e -> headerNameField.transferFocus());
@@ -167,12 +174,37 @@ public class TriggerPanel extends JPanel
 			@Override
 			public void mouseClicked(MouseEvent e)
 			{
-				expanded = !expanded;
-				detailsPanel.setVisible(expanded);
-				parentPanel.refreshLayout();
+				toggleExpand();
 			}
 		};
 		header.addMouseListener(toggleExpand);
+
+		// A single click on the name field behaves like the rest of the header
+		// (expand/collapse); a double-click switches it into an editable,
+		// focused field for renaming.
+		headerNameField.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				if (headerNameField.isEditable())
+				{
+					// Already editing: let clicks position the caret normally.
+					return;
+				}
+				if (e.getClickCount() >= 2)
+				{
+					// Undo the expand/collapse the first click of this
+					// double-click already triggered, then begin editing.
+					toggleExpand();
+					beginRename();
+				}
+				else
+				{
+					toggleExpand();
+				}
+			}
+		});
 
 		JPanel left = new JPanel(new BorderLayout(4, 0));
 		left.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -194,6 +226,35 @@ public class TriggerPanel extends JPanel
 		return header;
 	}
 
+	private void toggleExpand()
+	{
+		expanded = !expanded;
+		detailsPanel.setVisible(expanded);
+		parentPanel.refreshLayout();
+	}
+
+	/** Expands the card to reveal its configuration fields. */
+	void expand()
+	{
+		expanded = true;
+		detailsPanel.setVisible(true);
+		parentPanel.refreshLayout();
+	}
+
+	/**
+	 * Switches the name field into editable, focused mode, as if the user had
+	 * double-clicked it. Used to drop a freshly added trigger straight into a
+	 * rename. Focus is requested on the EDT after the panel is laid out.
+	 */
+	void beginRename()
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			headerNameField.setEditable(true);
+			headerNameField.requestFocusInWindow();
+		});
+	}
+
 	// -------------------------------------------------------------------------
 	// Details panel
 	// -------------------------------------------------------------------------
@@ -205,13 +266,10 @@ public class TriggerPanel extends JPanel
 		details.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		details.setBorder(new EmptyBorder(6, 10, 10, 10));
 
-		// Sound file
-		details.add(buildSoundFileRow());
-		details.add(Box.createVerticalStrut(4));
-
-		// Volume
-		details.add(buildVolumeRow());
-		details.add(Box.createVerticalStrut(4));
+		details.add(buildSoundSection());
+		details.add(Box.createVerticalStrut(8));
+		details.add(makeDivider());
+		details.add(Box.createVerticalStrut(8));
 
 		// Type selector
 		JComboBox<TriggerType> typeBox = new JComboBox<>(TriggerType.values());
@@ -288,10 +346,23 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<HitsplatTarget> targetBox = makeEnumCombo(
 			HitsplatTarget.values(), trigger.getHitsplatTarget(), trigger::setHitsplatTarget);
+		targetBox.setToolTipText("Whom the hitsplat lands on");
 
-		section.add(makeRow("Value", valueField));
+		JComboBox<HitsplatSource> sourceBox = makeEnumCombo(
+			HitsplatSource.values(), trigger.getHitsplatSource(), trigger::setHitsplatSource);
+		sourceBox.setToolTipText("Who dealt the hitsplat");
+
+		JComboBox<HitsplatKind> kindBox = makeEnumCombo(
+			HitsplatKind.values(), trigger.getHitsplatKind(), trigger::setHitsplatKind);
+		kindBox.setToolTipText("Which kind of hitsplat to match (damage, poison, heal, …)");
+
+		section.add(makeRow("Kind", kindBox));
 		section.add(Box.createVerticalStrut(4));
-		section.add(makeRow("Target", targetBox));
+		section.add(makeRow("Recipient", targetBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Source", sourceBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Value", valueField));
 		section.add(Box.createVerticalStrut(4));
 
 		return section;
@@ -429,6 +500,75 @@ public class TriggerPanel extends JPanel
 	}
 
 	// -------------------------------------------------------------------------
+	// Sound section (source toggle + conditional sub-sections)
+	// -------------------------------------------------------------------------
+
+	private JPanel buildSoundSection()
+	{
+		JPanel fileSection = new JPanel();
+		fileSection.setLayout(new BoxLayout(fileSection, BoxLayout.Y_AXIS));
+		fileSection.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		fileSection.add(buildSoundFileRow());
+		fileSection.add(Box.createVerticalStrut(4));
+
+		JPanel builtinSection = new JPanel();
+		builtinSection.setLayout(new BoxLayout(builtinSection, BoxLayout.Y_AXIS));
+		builtinSection.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		builtinSection.add(buildBuiltinSoundRow());
+		builtinSection.add(Box.createVerticalStrut(4));
+
+		JPanel customSection = new JPanel();
+		customSection.setLayout(new BoxLayout(customSection, BoxLayout.Y_AXIS));
+		customSection.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		customSection.add(buildCustomSoundRow());
+		customSection.add(Box.createVerticalStrut(4));
+
+		SoundSource currentSource = trigger.getSoundSource();
+		fileSection.setVisible(currentSource == SoundSource.FILE);
+		builtinSection.setVisible(currentSource == SoundSource.BUILTIN);
+		customSection.setVisible(currentSource == SoundSource.CUSTOM);
+
+		JComboBox<SoundSource> sourceBox = makeEnumCombo(
+			SoundSource.values(), trigger.getSoundSource(), src ->
+			{
+				trigger.setSoundSource(src);
+				fileSection.setVisible(src == SoundSource.FILE);
+				builtinSection.setVisible(src == SoundSource.BUILTIN);
+				customSection.setVisible(src == SoundSource.CUSTOM);
+				parentPanel.refreshLayout();
+			});
+
+		JPanel section = new JPanel();
+		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
+		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		section.add(makeRow("Source", sourceBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(fileSection);
+		section.add(builtinSection);
+		section.add(customSection);
+		section.add(buildVolumeRow());
+
+		return section;
+	}
+
+	private JPanel buildCustomSoundRow()
+	{
+		JTextField field = new JTextField(
+			trigger.getCustomSoundId() != null ? trigger.getCustomSoundId().toString() : "");
+		styleTextField(field);
+		field.setToolTipText("Sound effect ID (e.g. 3813 for level-up jingle)");
+		bindNullableInt(field, trigger::setCustomSoundId);
+		return makeRow("Sound ID", field);
+	}
+
+	private JPanel buildBuiltinSoundRow()
+	{
+		JComboBox<BuiltinSound> soundBox = makeEnumCombo(
+			BuiltinSound.values(), trigger.getBuiltinSound(), trigger::setBuiltinSound);
+		return makeRow("Sound", soundBox);
+	}
+
+	// -------------------------------------------------------------------------
 	// Sound file row
 	// -------------------------------------------------------------------------
 
@@ -504,52 +644,53 @@ public class TriggerPanel extends JPanel
 		{
 			return path;
 		}
-		String sep = File.separator;
-		int start = 0;
-		while (true)
-		{
-			int next = path.indexOf(sep, start);
-			if (next < 0)
-			{
-				break;
-			}
-			String candidate = "..." + path.substring(next);
+                for (int i = 3; i < path.length(); ++i)
+                {
+			String candidate = "..." + path.substring(i);
 			if (fm.stringWidth(candidate) <= maxWidth)
 			{
 				return candidate;
 			}
-			start = next + sep.length();
 		}
-		int lastSep = path.lastIndexOf(sep);
-		return lastSep >= 0 ? "..." + path.substring(lastSep) : path;
+		return path.substring(path.length() - 3);
 	}
 
 	// -------------------------------------------------------------------------
 	// Volume row
 	// -------------------------------------------------------------------------
 
+	private static final String[] VOLUME_LABELS = {"Off", "Low", "Mid", "High", "Full"};
+
 	private JPanel buildVolumeRow()
 	{
 		JPanel row = new JPanel(new BorderLayout(4, 0));
 		row.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 
 		JLabel label = makeFieldLabel("Volume");
 		label.setPreferredSize(new Dimension(42, 20));
+		label.setVerticalAlignment(SwingConstants.TOP);
 
-		JSlider slider = new JSlider(0, 100, trigger.getVolume());
+		int level = Math.min(4, Math.max(0, trigger.getVolume()));
+		JSlider slider = new JSlider(0, 4, level);
 		slider.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		slider.setSnapToTicks(true);
+		slider.setMajorTickSpacing(1);
+		slider.setPaintTicks(true);
+		slider.setPaintLabels(true);
 
-		JLabel valueLabel = new JLabel(trigger.getVolume() + "%");
-		valueLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		valueLabel.setFont(FontManager.getRunescapeSmallFont());
-		valueLabel.setPreferredSize(new Dimension(34, 20));
+		java.util.Hashtable<Integer, JLabel> labelTable = new java.util.Hashtable<>();
+		for (int i = 0; i <= 4; i++)
+		{
+			JLabel l = new JLabel(VOLUME_LABELS[i]);
+			l.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+			l.setFont(FontManager.getRunescapeSmallFont());
+			labelTable.put(i, l);
+		}
+		slider.setLabelTable(labelTable);
 
 		slider.addChangeListener(e ->
 		{
-			int vol = slider.getValue();
-			valueLabel.setText(vol + "%");
-			trigger.setVolume(vol);
+			trigger.setVolume(slider.getValue());
 			if (!slider.getValueIsAdjusting())
 			{
 				plugin.saveTriggers();
@@ -558,7 +699,6 @@ public class TriggerPanel extends JPanel
 
 		row.add(label, BorderLayout.WEST);
 		row.add(slider, BorderLayout.CENTER);
-		row.add(valueLabel, BorderLayout.EAST);
 
 		return row;
 	}
@@ -579,11 +719,20 @@ public class TriggerPanel extends JPanel
 		row.setBorder(new EmptyBorder(1, 0, 1, 0));
 
 		JLabel label = makeFieldLabel(labelText);
-		label.setPreferredSize(new Dimension(42, 20));
+		label.setPreferredSize(new Dimension(60, 20));
 
 		row.add(label, BorderLayout.WEST);
 		row.add(component, BorderLayout.CENTER);
 		return row;
+	}
+
+	private static JPanel makeDivider()
+	{
+		JPanel line = new JPanel();
+		line.setBackground(ColorScheme.MEDIUM_GRAY_COLOR);
+		line.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+		line.setPreferredSize(new Dimension(0, 1));
+		return line;
 	}
 
 	private static JLabel makeFieldLabel(String text)
@@ -669,7 +818,7 @@ public class TriggerPanel extends JPanel
 	private <E> JComboBox<E> makeEnumCombo(E[] values, E current, java.util.function.Consumer<E> setter)
 	{
 		JComboBox<E> box = new JComboBox<>(values);
-		box.setSelectedItem(current);
+		box.setSelectedItem(current != null ? current : values[0]);
 		box.addActionListener(e ->
 		{
 			int index = box.getSelectedIndex();
