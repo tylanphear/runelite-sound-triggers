@@ -53,6 +53,8 @@ The plugin follows the standard RuneLite plugin pattern:
 
 - **`SoundTrigger`** — plain Lombok `@Data` model representing one trigger. Fields are union-style: type-specific fields are only relevant when `type` matches.
 
+- **`TriggerStore`** — the pure (`Client`/`ConfigManager`-free) persistence (de)serializer: strings in, triggers out (and back). Owns the on-disk JSON shape and the schema version. The plugin shell hands it the raw config string and gets a `List<SoundTrigger>`; keeping it separate makes the version envelope and fault isolation unit-testable (`TriggerStoreTest`).
+
 - **`StatTriggerState`** — an *immutable* per-tick snapshot of a `PLAYER_STAT` trigger's runtime state (`conditionMet`, `lastFiredMs`). Not persisted. `TriggerMatcher.stepStat` returns a fresh instance plus the fire decision (`StatStep`); the plugin owns the `Map<triggerId, StatTriggerState>` and swaps entries in — keeping the state machine pure.
 
 - **`TriggerType` and the per-type filter enums** — `TriggerType` is the discriminator; the remaining enums are the option sets for individual type-specific fields.
@@ -65,7 +67,11 @@ The plugin follows the standard RuneLite plugin pattern:
 
 ### Persistence flow
 
-Triggers are serialized to JSON via Gson and stored in RuneLite's `ConfigManager` under group `soundtriggers`, key `triggers`. They are loaded in `startUp()` and saved immediately on every UI interaction.
+Triggers are serialized to JSON via Gson (through `TriggerStore`) and stored in RuneLite's `ConfigManager` under group `soundtriggers`, key `triggers`. They are loaded in `startUp()` and saved immediately on every UI interaction.
+
+The stored value is a **versioned envelope** — `{"version":1,"triggers":[…]}` — rather than a bare array. `TriggerStore.SCHEMA_VERSION` is the current version; it exists as a seam for future data migrations (there are none yet — bump the constant and add a transform when a change can't be made purely additively).
+
+**Schema evolution:** because `SoundTrigger` deserializes through Lombok's no-arg constructor, field initializers run first and Gson only overwrites keys present in the JSON. So *additive* changes are free and need no migration: adding a field (it keeps its declared default in old data), adding a `TriggerType`/enum value, or removing a field (the stale key is ignored). Renames, retypes/unit changes, and removing a `TriggerType` are *not* additive and would need a version bump + migration. Loading is fault-isolated per trigger: an element that fails to deserialize is skipped and logged, so one bad trigger can't take down the rest of the list.
 
 ### Audio playback
 

@@ -1,7 +1,6 @@
 package com.soundtriggers;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
@@ -39,7 +38,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -410,26 +408,14 @@ public class SoundTriggersPlugin extends Plugin
 
 	public void saveTriggers()
 	{
-		String json = gson.toJson(triggers);
-		configManager.setConfiguration(CONFIG_GROUP, CONFIG_KEY_TRIGGERS, json);
+		configManager.setConfiguration(CONFIG_GROUP, CONFIG_KEY_TRIGGERS,
+			TriggerStore.serialize(gson, triggers));
 	}
 
 	private void loadTriggers()
 	{
 		String json = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_TRIGGERS);
-		if (json != null && !json.isEmpty())
-		{
-			Type listType = new TypeToken<List<SoundTrigger>>()
-			{
-			}.getType();
-			List<SoundTrigger> loaded = gson.fromJson(json, listType);
-			if (loaded != null)
-			{
-				triggers = loaded;
-				return;
-			}
-		}
-		triggers = new ArrayList<>();
+		triggers = TriggerStore.parse(gson, json);
 	}
 
 	private void playTrigger(SoundTrigger trigger)
