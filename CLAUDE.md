@@ -45,7 +45,7 @@ For reference when working on the UI (anything using `runelite.ui.*`), look at `
 
 ## Architecture
 
-The plugin follows the standard RuneLite plugin pattern:
+The plugin follows a functional-core/imperative-shell pattern:
 
 - **`SoundTriggersPlugin`** — the entry point (`@PluginDescriptor`) and the **imperative shell**. Handles lifecycle (`startUp`/`shutDown`), subscribes to game events, and owns trigger persistence via `ConfigManager` (JSON-serialized to config key `soundtriggers.triggers`). Each handler reads the volatile bits out of its event (and any `Client` state) and delegates the fire-or-not decision to `TriggerMatcher`; it does not embed matching logic itself.
 
@@ -57,7 +57,11 @@ The plugin follows the standard RuneLite plugin pattern:
 
 - **`StatTriggerState`** — an *immutable* per-tick snapshot of a `PLAYER_STAT` trigger's runtime state (`conditionMet`, `lastFiredMs`). Not persisted. `TriggerMatcher.stepStat` returns a fresh instance plus the fire decision (`StatStep`); the plugin owns the `Map<triggerId, StatTriggerState>` and swaps entries in — keeping the state machine pure.
 
-- **`TriggerType` and the per-type filter enums** — `TriggerType` is the discriminator; the remaining enums are the option sets for individual type-specific fields.
+- **`SoundSource`** — discriminator for how a trigger plays sound: `FILE` (user-picked file via `AudioPlayer`), `BUILTIN` (a curated `SoundEffectID` from `BuiltinSound` via `client.playSoundEffect`), or `CUSTOM` (a raw sound-effect ID via `client.playSoundEffect`). Each trigger carries all three flavors of config; `SoundSource` selects which one is active.
+
+- **`BuiltinSound`** — a curated list of `SoundEffectID` constants with human-readable display names. Adding a new built-in sound means adding a constant here.
+
+- **`TriggerType` and the per-type filter enums** — `TriggerType` is the event-type discriminator; each type has a set of filter enums that narrow when it fires (e.g. which kind of hitsplat, which stat, gained vs. lost, exact vs. substring match).
 
 - **`SoundTriggersPanel`** — the RuneLite side panel (`PluginPanel`). Holds a scrollable list of `TriggerPanel` cards. Call `rebuild()` after any change to the triggers list.
 
@@ -73,6 +77,18 @@ The stored value is a **versioned envelope** — `{"version":1,"triggers":[…]}
 
 **Schema evolution:** because `SoundTrigger` deserializes through Lombok's no-arg constructor, field initializers run first and Gson only overwrites keys present in the JSON. So *additive* changes are free and need no migration: adding a field (it keeps its declared default in old data), adding a `TriggerType`/enum value, or removing a field (the stale key is ignored). Renames, retypes/unit changes, and removing a `TriggerType` are *not* additive and would need a version bump + migration. Loading is fault-isolated per trigger: an element that fails to deserialize is skipped and logged, so one bad trigger can't take down the rest of the list.
 
+**Schema updates**: at the moment, the plugin is not published, and there are no configurations to migrate from. **Until the plugin is published** we don't need to bump the version number or add migrations for schema changes. Once it is, we can remove this note.
+
+### Non-obvious runtime behaviors
+
+- **Login-tick spawn suppression** — on login (or world-hop / region load), RuneLite fires `PlayerSpawned`/`NpcSpawned` for every actor already in the scene on the same tick. The plugin records `loginTick` and skips spawn events delivered on that tick, so "Player Seen" / "NPC Seen" triggers only fire for actors that genuinely come into view while playing.
+- **Stat priming** — on the first game tick after login, `PLAYER_STAT` triggers sample the current stat values but never fire. This prevents a condition that was already true at login (e.g. HP already below threshold) from firing spuriously on arrival. `statsPrimed` resets to `false` on any non-LOGGED_IN game state change.
+
 ### Audio playback
 
-Sound files are played via RuneLite's injected `AudioPlayer`. Only certain file formats (technically all formats supported by `AudioFileFormat.Type`, but currently only WAV) are supported (enforced by the file chooser filter). NOTE: for `AudioPlayer.play(file, gain)`, the `gain` parameter is in **decibels**.
+Each trigger's `SoundSource` determines the playback path:
+
+- **`FILE`** — played via RuneLite's injected `AudioPlayer`. Only WAV is supported (enforced by the file chooser filter). `AudioPlayer.play(file, gain)` takes gain in **decibels**.
+- **`BUILTIN` / `CUSTOM`** — played via `client.playSoundEffect(soundId, volume)` using `SoundEffectVolume` constants.
+
+All three paths share the same 0–4 volume slider on the trigger; `playTrigger` maps that to the appropriate scale for each path.
