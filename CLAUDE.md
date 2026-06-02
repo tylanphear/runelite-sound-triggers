@@ -15,6 +15,12 @@ When you need to check a RuneLite API signature or semantics (e.g. what units a 
 
 For example, `net.runelite.client.audio.AudioPlayer` is documented at `https://static.runelite.net/runelite-client/apidocs/net/runelite/client/audio/AudioPlayer.html`.
 
+There is also a local version of the RuneLite API Events Reference located at `docs/runelite-events-api.md`.
+
+## UI Docs
+
+For reference when working on the UI (anything using `runelite.ui.*`), look at `docs/runelite-ui-best-practices.md`.
+
 ## Commands
 
 ```bash
