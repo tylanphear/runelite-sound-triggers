@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @PluginDescriptor(
@@ -75,6 +76,7 @@ public class SoundTriggersPlugin extends Plugin
 	private Gson gson;
 
 	private static final int VENOM_VALUE_CUTOFF = 1_000_000;
+	private static final BufferedImage PLUGIN_ICON = buildIcon();
 
 	private SoundTriggersPanel panel;
 	private NavigationButton navButton;
@@ -107,16 +109,17 @@ public class SoundTriggersPlugin extends Plugin
 		statsPrimed = false;
 		loadTriggers();
 
-		panel = new SoundTriggersPanel(this);
-
-		navButton = NavigationButton.builder()
-			.tooltip("Sound Triggers")
-			.icon(buildIcon())
-			.priority(5)
-			.panel(panel)
-			.build();
-
-		SwingUtilities.invokeLater(() -> clientToolbar.addNavigation(navButton));
+		SwingUtilities.invokeLater(() ->
+		{
+			panel = new SoundTriggersPanel(this);
+			navButton = NavigationButton.builder()
+				.tooltip("Sound Triggers")
+				.icon(PLUGIN_ICON)
+				.priority(5)
+				.panel(panel)
+				.build();
+			clientToolbar.addNavigation(navButton);
+		});
 	}
 
 	@Override
@@ -125,7 +128,8 @@ public class SoundTriggersPlugin extends Plugin
 		saveTriggers();
 		statStates.clear();
 		statsPrimed = false;
-		SwingUtilities.invokeLater(() -> clientToolbar.removeNavigation(navButton));
+		NavigationButton btn = navButton;
+		SwingUtilities.invokeLater(() -> clientToolbar.removeNavigation(btn));
 		panel = null;
 		navButton = null;
 	}
@@ -368,6 +372,40 @@ public class SoundTriggersPlugin extends Plugin
 	public List<SoundTrigger> getTriggers()
 	{
 		return triggers;
+	}
+
+	/** Returns a JSON string of {@code trigger} with the sound file path stripped, safe for sharing. */
+	public String exportTriggerJson(SoundTrigger trigger)
+	{
+		SoundTrigger copy = gson.fromJson(gson.toJson(trigger), SoundTrigger.class);
+		copy.setSoundPath(null);
+		return gson.toJson(copy);
+	}
+
+	/**
+	 * Parses a {@link SoundTrigger} from {@code json} and assigns it a fresh ID.
+	 * Returns {@code null} if the input is blank or cannot be parsed as a trigger.
+	 */
+	public SoundTrigger importTriggerFromJson(String json)
+	{
+		if (json == null || json.isBlank())
+		{
+			return null;
+		}
+		try
+		{
+			SoundTrigger t = gson.fromJson(json, SoundTrigger.class);
+			if (t == null)
+			{
+				return null;
+			}
+			t.setId(UUID.randomUUID().toString());
+			return t;
+		}
+		catch (Exception e)
+		{
+			return null;
+		}
 	}
 
 	public void saveTriggers()

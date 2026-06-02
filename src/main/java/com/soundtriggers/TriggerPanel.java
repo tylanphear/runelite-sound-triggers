@@ -2,36 +2,49 @@ package com.soundtriggers;
 
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+import net.runelite.client.util.SwingUtil;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.AWTEvent;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.FontMetrics;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.AWTEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -49,9 +62,26 @@ public class TriggerPanel extends JPanel
 
 	private static final String PLACEHOLDER = "(unnamed)";
 
+	private static final ListCellRenderer<Object> COMBO_RENDERER = new DefaultListCellRenderer()
+	{
+		@Override
+		public Component getListCellRendererComponent(
+			JList<?> list, Object value, int index, boolean isSelected, boolean hasFocus)
+		{
+			super.getListCellRendererComponent(list, value, index, isSelected, hasFocus);
+			setBorder(new EmptyBorder(2, 4, 2, 4));
+			setBackground(isSelected ? ColorScheme.DARK_GRAY_HOVER_COLOR : ColorScheme.DARK_GRAY_COLOR);
+			setForeground(Color.WHITE);
+			return this;
+		}
+	};
+
 	private final JTextField headerNameField;
 	private final JPanel detailsPanel;
-	private boolean expanded = false;
+
+	private boolean renamingActive = false;
+	private String originalName;
+	private AWTEventListener globalCommitListener;
 
 	public TriggerPanel(SoundTrigger trigger, SoundTriggersPlugin plugin, SoundTriggersPanel parentPanel)
 	{
@@ -130,37 +160,48 @@ public class TriggerPanel extends JPanel
 					headerNameField.setText("");
 					headerNameField.setForeground(Color.WHITE);
 				}
+				renamingActive = true;
 			}
 
 			@Override
 			public void focusLost(FocusEvent e)
 			{
-				if (headerNameField.getText().isEmpty())
-				{
-					headerNameField.setText(PLACEHOLDER);
-					headerNameField.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-				}
-				// Leaving the field returns it to read-only so the next single
-				// click toggles expand/collapse again rather than editing.
-				headerNameField.setEditable(false);
+				commitRename();
 			}
 		});
-		headerNameField.addActionListener(e -> headerNameField.transferFocus());
+		headerNameField.addActionListener(e -> commitRename());
+		headerNameField.getInputMap(WHEN_FOCUSED).put(
+			KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancelRename");
+		headerNameField.getActionMap().put("cancelRename", new AbstractAction()
+		{
+			@Override
+			public void actionPerformed(java.awt.event.ActionEvent e) { cancelRename(); }
+		});
 		headerNameField.getDocument().addDocumentListener(simpleListener(() ->
 		{
+			headerNameField.revalidate();
+			if (!renamingActive)
+			{
+				return;
+			}
 			String text = headerNameField.getText();
 			trigger.setName(PLACEHOLDER.equals(text) ? "" : text);
 			plugin.saveTriggers();
-			headerNameField.revalidate();
 		}));
 
 		JButton deleteButton = new JButton("✕");
+		SwingUtil.removeButtonDecorations(deleteButton);
 		deleteButton.setFont(deleteButton.getFont().deriveFont(9f));
 		deleteButton.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		deleteButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		deleteButton.setBorder(new EmptyBorder(2, 6, 2, 6));
-		deleteButton.setFocusPainted(false);
 		deleteButton.setToolTipText("Delete this trigger");
+		deleteButton.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseEntered(MouseEvent e) { deleteButton.setForeground(Color.WHITE); }
+			@Override
+			public void mouseExited(MouseEvent e)  { deleteButton.setForeground(ColorScheme.LIGHT_GRAY_COLOR); }
+		});
 		deleteButton.addActionListener(e ->
 		{
 			plugin.getTriggers().remove(trigger);
@@ -171,6 +212,14 @@ public class TriggerPanel extends JPanel
 		// Expand/collapse on header click (but not on the name field, checkbox, or delete button)
 		MouseAdapter toggleExpand = new MouseAdapter()
 		{
+			@Override
+			public void mousePressed(MouseEvent e)
+			{
+				// Clicking a non-focusable area doesn't move keyboard focus, so
+				// focusLost won't fire on the name field. Commit explicitly here.
+				commitRename();
+			}
+
 			@Override
 			public void mouseClicked(MouseEvent e)
 			{
@@ -228,15 +277,13 @@ public class TriggerPanel extends JPanel
 
 	private void toggleExpand()
 	{
-		expanded = !expanded;
-		detailsPanel.setVisible(expanded);
+		detailsPanel.setVisible(!detailsPanel.isVisible());
 		parentPanel.refreshLayout();
 	}
 
 	/** Expands the card to reveal its configuration fields. */
 	void expand()
 	{
-		expanded = true;
 		detailsPanel.setVisible(true);
 		parentPanel.refreshLayout();
 	}
@@ -248,11 +295,73 @@ public class TriggerPanel extends JPanel
 	 */
 	void beginRename()
 	{
+		deactivateRenameMode();
+		originalName = trigger.getName();
 		SwingUtilities.invokeLater(() ->
 		{
 			headerNameField.setEditable(true);
 			headerNameField.requestFocusInWindow();
+			globalCommitListener = event ->
+			{
+				if (event.getID() == MouseEvent.MOUSE_PRESSED)
+				{
+					Component source = ((MouseEvent) event).getComponent();
+					if (!SwingUtilities.isDescendingFrom(source, headerNameField))
+					{
+						SwingUtilities.invokeLater(this::commitRename);
+					}
+				}
+			};
+			Toolkit.getDefaultToolkit().addAWTEventListener(
+				globalCommitListener, AWTEvent.MOUSE_EVENT_MASK);
 		});
+	}
+
+	private void commitRename()
+	{
+		if (!headerNameField.isEditable())
+		{
+			return;
+		}
+		deactivateRenameMode();
+		if (headerNameField.getText().isEmpty())
+		{
+			headerNameField.setText(PLACEHOLDER);
+			headerNameField.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		}
+		headerNameField.setEditable(false);
+	}
+
+	private void cancelRename()
+	{
+		if (!headerNameField.isEditable())
+		{
+			return;
+		}
+		deactivateRenameMode();
+		trigger.setName(originalName);
+		plugin.saveTriggers();
+		boolean hasName = originalName != null && !originalName.isEmpty();
+		headerNameField.setText(hasName ? originalName : PLACEHOLDER);
+		headerNameField.setForeground(hasName ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		headerNameField.setEditable(false);
+	}
+
+	private void deactivateRenameMode()
+	{
+		renamingActive = false;
+		if (globalCommitListener != null)
+		{
+			Toolkit.getDefaultToolkit().removeAWTEventListener(globalCommitListener);
+			globalCommitListener = null;
+		}
+	}
+
+	@Override
+	public void removeNotify()
+	{
+		super.removeNotify();
+		deactivateRenameMode();
 	}
 
 	// -------------------------------------------------------------------------
@@ -274,6 +383,11 @@ public class TriggerPanel extends JPanel
 		// Type selector
 		JComboBox<TriggerType> typeBox = new JComboBox<>(TriggerType.values());
 		typeBox.setSelectedItem(trigger.getType());
+		typeBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		typeBox.setForeground(Color.WHITE);
+		typeBox.setFont(FontManager.getRunescapeSmallFont());
+		typeBox.setRenderer(COMBO_RENDERER);
+		typeBox.setToolTipText("What kind of in-game event this trigger fires on");
 		details.add(makeRow("Type", typeBox));
 		details.add(Box.createVerticalStrut(4));
 
@@ -312,6 +426,31 @@ public class TriggerPanel extends JPanel
 		details.add(npcSeenSection);
 		details.add(statusEffectSection);
 		details.add(playerStatSection);
+
+		details.add(Box.createVerticalStrut(8));
+		details.add(makeDivider());
+		details.add(Box.createVerticalStrut(8));
+
+		JButton copyButton = new JButton("Copy to Clipboard");
+		SwingUtil.removeButtonDecorations(copyButton);
+		copyButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		copyButton.setForeground(Color.WHITE);
+		copyButton.setOpaque(true);
+		copyButton.setContentAreaFilled(true);
+		copyButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+		copyButton.setToolTipText("Copy this trigger's configuration to the clipboard for sharing");
+		copyButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, copyButton.getPreferredSize().height));
+		copyButton.addActionListener(e ->
+		{
+			String json = plugin.exportTriggerJson(trigger);
+			Toolkit.getDefaultToolkit().getSystemClipboard()
+				.setContents(new StringSelection(json), null);
+			copyButton.setText("Copied!");
+			Timer timer = new Timer(1500, ev -> copyButton.setText("Copy to Clipboard"));
+			timer.setRepeats(false);
+			timer.start();
+		});
+		details.add(copyButton);
 
 		return details;
 	}
@@ -421,9 +560,9 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
 
-		section.add(makeRow("Match", matchBox));
-		section.add(Box.createVerticalStrut(4));
 		section.add(makeRow("Name", field));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -441,9 +580,9 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
 
-		section.add(makeRow("Match", matchBox));
-		section.add(Box.createVerticalStrut(4));
 		section.add(makeRow("Name", field));
+		section.add(Box.createVerticalStrut(4));
+		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -490,7 +629,7 @@ public class TriggerPanel extends JPanel
 		styleTextField(repeatField);
 		repeatField.setToolTipText(
 			"Seconds between repeats while the condition holds. Leave blank to play once when crossing.");
-		bindNullableInt(repeatField, trigger::setStatRepeatSeconds);
+		bindPositiveInt(repeatField, trigger::setStatRepeatSeconds);
 
 		section.add(makeRow("Stat", statBox));
 		section.add(Box.createVerticalStrut(4));
@@ -541,6 +680,7 @@ public class TriggerPanel extends JPanel
 				customSection.setVisible(src == SoundSource.CUSTOM);
 				parentPanel.refreshLayout();
 			});
+		sourceBox.setToolTipText("Where to get the sound from");
 
 		JPanel section = new JPanel();
 		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
@@ -579,8 +719,12 @@ public class TriggerPanel extends JPanel
 	private JPanel buildSoundFileRow()
 	{
 		JButton fileButton = new JButton();
+		SwingUtil.removeButtonDecorations(fileButton);
+		fileButton.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		fileButton.setForeground(Color.WHITE);
+		fileButton.setOpaque(true);
+		fileButton.setContentAreaFilled(true);
 		fileButton.setFont(FontManager.getRunescapeSmallFont());
-		fileButton.setFocusPainted(false);
 		fileButton.setHorizontalAlignment(SwingConstants.LEFT);
 
 		Runnable refreshLabel = () ->
@@ -719,7 +863,6 @@ public class TriggerPanel extends JPanel
 	{
 		JPanel row = new JPanel(new BorderLayout(6, 0));
 		row.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 		row.setBorder(new EmptyBorder(1, 0, 1, 0));
 
 		JLabel label = makeFieldLabel(labelText);
@@ -727,6 +870,7 @@ public class TriggerPanel extends JPanel
 
 		row.add(label, BorderLayout.WEST);
 		row.add(component, BorderLayout.CENTER);
+		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
 		return row;
 	}
 
@@ -753,6 +897,7 @@ public class TriggerPanel extends JPanel
 		field.setForeground(Color.WHITE);
 		field.setCaretColor(Color.WHITE);
 		field.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR));
+		field.setFont(FontManager.getRunescapeSmallFont());
 	}
 
 	/**
@@ -815,6 +960,40 @@ public class TriggerPanel extends JPanel
 		}));
 	}
 
+	/**
+	 * Like {@link #bindNullableInt} but also rejects zero and negative values,
+	 * treating them as unparseable (the setter is not called and nothing is saved).
+	 */
+	private void bindPositiveInt(JTextField field, java.util.function.Consumer<Integer> setter)
+	{
+		field.getDocument().addDocumentListener(simpleListener(() ->
+		{
+			String text = field.getText().trim();
+			Integer value;
+			if (text.isEmpty())
+			{
+				value = null;
+			}
+			else
+			{
+				try
+				{
+					value = Integer.parseInt(text);
+					if (value <= 0)
+					{
+						return;
+					}
+				}
+				catch (NumberFormatException ignored)
+				{
+					return;
+				}
+			}
+			setter.accept(value);
+			plugin.saveTriggers();
+		}));
+	}
+
 	private JComboBox<MatchMode> makeMatchModeBox(MatchMode current, java.util.function.Consumer<MatchMode> setter)
 	{
 		JComboBox<MatchMode> box = makeEnumCombo(MatchMode.values(), current, setter);
@@ -830,6 +1009,10 @@ public class TriggerPanel extends JPanel
 	{
 		JComboBox<E> box = new JComboBox<>(values);
 		box.setSelectedItem(current != null ? current : values[0]);
+		box.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		box.setForeground(Color.WHITE);
+		box.setFont(FontManager.getRunescapeSmallFont());
+		box.setRenderer(COMBO_RENDERER);
 		box.addActionListener(e ->
 		{
 			int index = box.getSelectedIndex();

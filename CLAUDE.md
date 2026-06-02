@@ -31,7 +31,7 @@ For example, `net.runelite.client.audio.AudioPlayer` is documented at `https://s
 ./gradlew test
 ```
 
-> **Build fails with an environmental error (`java.io.IOException: Input/output error`, e.g. while creating Gradle's `FileHasher`)?** This usually means a test client launched via `./gradlew run` is still open and holding a lock on the Gradle cache/build files. Close the running client and re-run the build.
+> **Build or test run fails with an environmental error (`java.io.IOException: Input/output error`, e.g. while creating Gradle's `FileHasher`)?** This usually means a test client launched via `./gradlew run` is still open and holding a lock on the Gradle cache/build files. **ALWAYS** instruct the user to close the running client; this will allow you to successfully re-run the command.
 
 > **Note on tests:** Real automated coverage lives in `TriggerMatcherTest` (JUnit 4). It exercises the trigger-matching and `PLAYER_STAT` state-machine logic with no live `Client`. Be aware that `SoundTriggersPluginTest` is just a `main()` launcher (the RuneLite convention) that boots a dev client via `ExternalPluginManager.loadBuiltin`, and contributes no assertions to `./gradlew test`.
 
