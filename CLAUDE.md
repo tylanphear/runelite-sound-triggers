@@ -81,7 +81,6 @@ The stored value is a **versioned envelope** — `{"version":1,"triggers":[…]}
 
 ### Non-obvious runtime behaviors
 
-- **Login-tick spawn suppression** — on login (or world-hop / region load), RuneLite fires `PlayerSpawned`/`NpcSpawned` for every actor already in the scene on the same tick. The plugin records `loginTick` and skips spawn events delivered on that tick, so "Player Seen" / "NPC Seen" triggers only fire for actors that genuinely come into view while playing.
 - **Stat priming** — on the first game tick after login, `PLAYER_STAT` triggers sample the current stat values but never fire. This prevents a condition that was already true at login (e.g. HP already below threshold) from firing spuriously on arrival. `statsPrimed` resets to `false` on any non-LOGGED_IN game state change.
 
 ### Audio playback

@@ -91,14 +91,6 @@ public class SoundTriggersPlugin extends Plugin
 	 */
 	private boolean statsPrimed = false;
 
-	/**
-	 * Tick of the most recent {@code LOGGED_IN} transition. On login (and on
-	 * world-hop / region load) the client spawns every actor already in the
-	 * scene on this same tick; we skip those so "Player Seen" / "NPC Seen"
-	 * only fire for actors that come into view while actually playing.
-	 */
-	private int loginTick = -1;
-
 	@Override
 	protected void startUp()
 	{
@@ -182,11 +174,6 @@ public class SoundTriggersPlugin extends Plugin
 	@Subscribe
 	public void onPlayerSpawned(PlayerSpawned event)
 	{
-		if (isLoginSpawn())
-		{
-			return;
-		}
-
 		Player player = event.getPlayer();
 		if (player == client.getLocalPlayer())
 		{
@@ -207,11 +194,6 @@ public class SoundTriggersPlugin extends Plugin
 	@Subscribe
 	public void onNpcSpawned(NpcSpawned event)
 	{
-		if (isLoginSpawn())
-		{
-			return;
-		}
-
 		NPC npc = event.getNpc();
 		String name = npc.getName();
 
@@ -251,7 +233,7 @@ public class SoundTriggersPlugin extends Plugin
 	}
 
 	/**
-	 * Fires any matching STATUS_EFFECT triggers for a 0&harr;non-zero transition of
+	 * Fires any matching STATUS_EFFECT triggers for a 0<->non-zero transition of
 	 * the given affliction. A change that stays non-zero (e.g. poison ticking down,
 	 * or poison escalating into venom) is neither a gain nor a loss and is ignored.
 	 */
@@ -276,28 +258,10 @@ public class SoundTriggersPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
-		// Re-prime baselines whenever we (re)enter the world, so leaving and
-		// returning (logout, hop, disconnect) does not fire on a condition that
-		// was already true on arrival.
-		if (event.getGameState() == GameState.LOGGED_IN)
-		{
-			loginTick = client.getTickCount();
-		}
-		else
+		if (event.getGameState() != GameState.LOGGED_IN)
 		{
 			statsPrimed = false;
 		}
-	}
-
-	/**
-	 * True while we're still on the tick the client logged in / loaded a new
-	 * region on. The actor spawns delivered on this tick are the bulk
-	 * scene-load batch (everyone already standing around), not actors that
-	 * just came into view, so spawn triggers should ignore them.
-	 */
-	private boolean isLoginSpawn()
-	{
-		return client.getTickCount() == loginTick;
 	}
 
 	@Subscribe
