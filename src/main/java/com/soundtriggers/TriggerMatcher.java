@@ -196,15 +196,12 @@ final class TriggerMatcher
 
 	/**
 	 * {@code true} when {@code haystack} contains {@code filter} ignoring case.
-	 * A {@code null} or blank {@code filter} carries no information, so the result
-	 * is {@code allowNull} — letting each caller decide whether an unconfigured
-	 * filter means "match anything" or "trigger not set up, match nothing".
 	 */
-	private static boolean containsIgnoreCase(String haystack, String filter, boolean allowNull)
+	private static boolean containsIgnoreCase(String haystack, String filter)
 	{
 		if (filter == null || filter.isEmpty())
 		{
-			return allowNull;
+			return false;
 		}
 		return haystack != null
 			&& haystack.toLowerCase().contains(filter.toLowerCase());
@@ -212,23 +209,26 @@ final class TriggerMatcher
 
 	/**
 	 * Matches an in-game {@code name} against a {@code filter} per {@code mode}:
-	 * {@link MatchMode#CONTAINS} (the default for a {@code null} mode) does a
-	 * case-insensitive substring match, and {@link MatchMode#EXACT} requires
-	 * case-insensitive equality. A {@code null}/blank filter matches any name
-	 * under {@code CONTAINS} (a deliberate "anyone in view" alert) but matches
-	 * nothing under {@code EXACT}, where a blank means the trigger is unconfigured.
+	 * {@link MatchMode#ANY} matches any string, {@link MatchMode#CONTAINS}
+	 * (the default for a {@code null} mode) does a case-insensitive
+	 * substring match, and {@link MatchMode#EXACT} requires
+	 * case-insensitive equality.
 	 */
 	private static boolean matches(String name, String filter, MatchMode mode)
 	{
-		if (mode == MatchMode.EXACT)
+		if (mode == MatchMode.ANY)
 		{
-			if (filter == null || filter.isEmpty())
-			{
-				return false;
-			}
-			return name != null && name.equalsIgnoreCase(filter);
+			return true;
 		}
-		return containsIgnoreCase(name, filter, mode == MatchMode.CONTAINS);
+		if (mode == MatchMode.CONTAINS)
+		{
+			return containsIgnoreCase(name, filter);
+		}
+		if (name == null || name.isEmpty() || filter == null || filter.isEmpty())
+		{
+			return false;
+		}
+		return name.equalsIgnoreCase(filter);
 	}
 
 	/** Result of advancing a {@link TriggerType#PLAYER_STAT} trigger one tick. */

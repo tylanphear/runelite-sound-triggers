@@ -457,9 +457,21 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getItemNameMatchMode(), trigger::setItemNameMatchMode);
 
-		section.add(makeRow("Name", field));
-		section.add(Box.createVerticalStrut(4));
+		JPanel nameRow = makeRow("Name", field);
+		nameRow.setVisible(trigger.getItemNameMatchMode() != MatchMode.ANY);
+		matchBox.addActionListener(e ->
+		{
+			MatchMode selected = (MatchMode) matchBox.getSelectedItem();
+			if (selected != null)
+			{
+				nameRow.setVisible(selected != MatchMode.ANY);
+				parentPanel.refreshLayout();
+			}
+		});
+
 		section.add(makeRow("Match", matchBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(nameRow);
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -477,9 +489,21 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getChatPatternMatchMode(), trigger::setChatPatternMatchMode);
 
-		section.add(makeRow("Pattern", field));
-		section.add(Box.createVerticalStrut(4));
+		JPanel patternRow = makeRow("Pattern", field);
+		patternRow.setVisible(trigger.getChatPatternMatchMode() != MatchMode.ANY);
+		matchBox.addActionListener(e ->
+		{
+			MatchMode selected = (MatchMode) matchBox.getSelectedItem();
+			if (selected != null)
+			{
+				patternRow.setVisible(selected != MatchMode.ANY);
+				parentPanel.refreshLayout();
+			}
+		});
+
 		section.add(makeRow("Match", matchBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(patternRow);
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -497,9 +521,21 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
 
-		section.add(makeRow("Name", field));
-		section.add(Box.createVerticalStrut(4));
+		JPanel nameRow = makeRow("Name", field);
+		nameRow.setVisible(trigger.getPlayerNameMatchMode() != MatchMode.ANY);
+		matchBox.addActionListener(e ->
+		{
+			MatchMode selected = (MatchMode) matchBox.getSelectedItem();
+			if (selected != null)
+			{
+				nameRow.setVisible(selected != MatchMode.ANY);
+				parentPanel.refreshLayout();
+			}
+		});
+
 		section.add(makeRow("Match", matchBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(nameRow);
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -517,9 +553,21 @@ public class TriggerPanel extends JPanel
 
 		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getNpcNameMatchMode(), trigger::setNpcNameMatchMode);
 
-		section.add(makeRow("Name", field));
-		section.add(Box.createVerticalStrut(4));
+		JPanel nameRow = makeRow("Name", field);
+		nameRow.setVisible(trigger.getNpcNameMatchMode() != MatchMode.ANY);
+		matchBox.addActionListener(e ->
+		{
+			MatchMode selected = (MatchMode) matchBox.getSelectedItem();
+			if (selected != null)
+			{
+				nameRow.setVisible(selected != MatchMode.ANY);
+				parentPanel.refreshLayout();
+			}
+		});
+
 		section.add(makeRow("Match", matchBox));
+		section.add(Box.createVerticalStrut(4));
+		section.add(nameRow);
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}
@@ -934,7 +982,7 @@ public class TriggerPanel extends JPanel
 	private JComboBox<MatchMode> makeMatchModeBox(MatchMode current, java.util.function.Consumer<MatchMode> setter)
 	{
 		JComboBox<MatchMode> box = makeEnumCombo(MatchMode.values(), current, setter);
-		box.setToolTipText("Contains: match part of the name. Exact: match the whole name.");
+		box.setToolTipText("Any: match everything. Contains: match part of the name. Exact: match the whole name.");
 		return box;
 	}
 

@@ -180,16 +180,29 @@ public class TriggerMatcherTest
 	}
 
 	@Test
-	public void itemBlankFilterWithContainsModeMatchesAnyDrop()
+	public void itemAnyModeMatchesAnyDrop()
 	{
-		// CONTAINS + blank = deliberate "fire on any drop".
+		// ANY mode fires regardless of item name or filter value.
 		SoundTrigger t = trigger(TriggerType.ITEM_DROP);
-		t.setItemNameMatchMode(MatchMode.CONTAINS);
+		t.setItemNameMatchMode(MatchMode.ANY);
 		t.setItemName(null);
 		assertTrue(TriggerMatcher.matchesItem(t, "Dragon bones"));
 
-		t.setItemName("");
+		t.setItemName("something");
 		assertTrue(TriggerMatcher.matchesItem(t, "Dragon bones"));
+	}
+
+	@Test
+	public void itemBlankFilterWithContainsModeDoesNotFire()
+	{
+		// CONTAINS + blank is unconfigured, not "fire on any drop" — use ANY for that.
+		SoundTrigger t = trigger(TriggerType.ITEM_DROP);
+		t.setItemNameMatchMode(MatchMode.CONTAINS);
+		t.setItemName(null);
+		assertFalse(TriggerMatcher.matchesItem(t, "Dragon bones"));
+
+		t.setItemName("");
+		assertFalse(TriggerMatcher.matchesItem(t, "Dragon bones"));
 	}
 
 	@Test
@@ -236,16 +249,29 @@ public class TriggerMatcherTest
 	}
 
 	@Test
-	public void chatBlankFilterWithContainsModeMatchesAnyMessage()
+	public void chatAnyModeMatchesAnyMessage()
 	{
-		// CONTAINS + blank = deliberate "fire on any chat message".
+		// ANY mode fires regardless of message content or pattern value.
 		SoundTrigger t = trigger(TriggerType.CHAT_MESSAGE);
-		t.setChatPatternMatchMode(MatchMode.CONTAINS);
+		t.setChatPatternMatchMode(MatchMode.ANY);
 		t.setChatPattern(null);
 		assertTrue(TriggerMatcher.matchesChat(t, "Anything at all."));
 
-		t.setChatPattern("");
+		t.setChatPattern("something");
 		assertTrue(TriggerMatcher.matchesChat(t, "Anything at all."));
+	}
+
+	@Test
+	public void chatBlankFilterWithContainsModeDoesNotFire()
+	{
+		// CONTAINS + blank is unconfigured, not "fire on any message" — use ANY for that.
+		SoundTrigger t = trigger(TriggerType.CHAT_MESSAGE);
+		t.setChatPatternMatchMode(MatchMode.CONTAINS);
+		t.setChatPattern(null);
+		assertFalse(TriggerMatcher.matchesChat(t, "Anything at all."));
+
+		t.setChatPattern("");
+		assertFalse(TriggerMatcher.matchesChat(t, "Anything at all."));
 	}
 
 	@Test
@@ -313,16 +339,26 @@ public class TriggerMatcherTest
 	}
 
 	@Test
-	public void containsModeWithBlankFilterFiresOnAny()
+	public void anyModeFiresOnAnySpawn()
 	{
-		// ...but Contains + blank is the deliberate "anyone in view" alert.
+		// ANY mode is the explicit "anyone in view" alert — blank CONTAINS is no longer enough.
+		SoundTrigger t = trigger(TriggerType.NPC_SEEN);
+		t.setNpcNameMatchMode(MatchMode.ANY);
+		assertTrue(TriggerMatcher.matchesNpcSpawn(t, "Goblin"));
+		assertTrue(TriggerMatcher.matchesNpcSpawn(t, "Cave goblin"));
+	}
+
+	@Test
+	public void containsModeWithBlankFilterDoesNotFire()
+	{
+		// CONTAINS + blank is unconfigured, not "fire on any spawn" — use ANY for that.
 		SoundTrigger t = trigger(TriggerType.NPC_SEEN);
 		t.setNpcName(null);
 		t.setNpcNameMatchMode(MatchMode.CONTAINS);
-		assertTrue(TriggerMatcher.matchesNpcSpawn(t, "Goblin"));
+		assertFalse(TriggerMatcher.matchesNpcSpawn(t, "Goblin"));
 
 		t.setNpcName("");
-		assertTrue(TriggerMatcher.matchesNpcSpawn(t, "Goblin"));
+		assertFalse(TriggerMatcher.matchesNpcSpawn(t, "Goblin"));
 	}
 
 	@Test
@@ -333,10 +369,9 @@ public class TriggerMatcherTest
 		filtered.setNpcName("goblin");
 		assertFalse(TriggerMatcher.matchesNpcSpawn(filtered, null));
 
-		// CONTAINS + blank filter fires on any NPC, even one with a null name.
+		// ANY mode fires even when the actor name is null.
 		SoundTrigger anyNpc = trigger(TriggerType.NPC_SEEN);
-		anyNpc.setNpcName(null);
-		anyNpc.setNpcNameMatchMode(MatchMode.CONTAINS);
+		anyNpc.setNpcNameMatchMode(MatchMode.ANY);
 		assertTrue(TriggerMatcher.matchesNpcSpawn(anyNpc, null));
 	}
 

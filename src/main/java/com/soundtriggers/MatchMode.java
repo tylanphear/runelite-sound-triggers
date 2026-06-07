@@ -9,7 +9,9 @@ public enum MatchMode
 	/** The in-game name contains the filter (case-insensitive substring). */
 	CONTAINS("Contains"),
 	/** The in-game name equals the filter exactly (case-insensitive). */
-	EXACT("Exact");
+	EXACT("Exact"),
+        /** Any name will match the filter.*/
+        ANY("Any");
 
 	private final String displayName;
 
