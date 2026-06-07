@@ -50,15 +50,6 @@ public class SoundTriggersPanel extends PluginPanel
 		title.setFont(title.getFont().deriveFont(Font.BOLD, 13f));
 		title.setAlignmentX(0.0f);
 
-		JButton importButton = new JButton("Import");
-		SwingUtil.removeButtonDecorations(importButton);
-		importButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		importButton.setForeground(Color.WHITE);
-		importButton.setOpaque(true);
-		importButton.setContentAreaFilled(true);
-		importButton.setToolTipText("Import a trigger from clipboard");
-		importButton.addActionListener(e -> importTrigger());
-
 		JButton addButton = new JButton("New");
 		SwingUtil.removeButtonDecorations(addButton);
 		addButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -68,11 +59,10 @@ public class SoundTriggersPanel extends PluginPanel
 		addButton.setToolTipText("Add a new trigger");
 		addButton.addActionListener(e -> addTrigger());
 
-		JPanel buttonsRow = new JPanel(new GridLayout(1, 2, 4, 0));
+		JPanel buttonsRow = new JPanel(new GridLayout(1, 1, 4, 0));
 		buttonsRow.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		buttonsRow.setAlignmentX(0.0f);
 		buttonsRow.add(addButton);
-		buttonsRow.add(importButton);
 
 		header.add(title);
 		header.add(Box.createVerticalStrut(8));

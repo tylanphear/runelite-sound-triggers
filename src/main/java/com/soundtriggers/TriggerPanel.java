@@ -38,7 +38,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.FontMetrics;
 import java.awt.Toolkit;
-import java.awt.datatransfer.StringSelection;
 import java.awt.event.AWTEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -426,31 +425,6 @@ public class TriggerPanel extends JPanel
 		details.add(npcSeenSection);
 		details.add(statusEffectSection);
 		details.add(playerStatSection);
-
-		details.add(Box.createVerticalStrut(8));
-		details.add(makeDivider());
-		details.add(Box.createVerticalStrut(8));
-
-		JButton copyButton = new JButton("Copy to Clipboard");
-		SwingUtil.removeButtonDecorations(copyButton);
-		copyButton.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		copyButton.setForeground(Color.WHITE);
-		copyButton.setOpaque(true);
-		copyButton.setContentAreaFilled(true);
-		copyButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-		copyButton.setToolTipText("Copy this trigger's configuration to the clipboard for sharing");
-		copyButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, copyButton.getPreferredSize().height));
-		copyButton.addActionListener(e ->
-		{
-			String json = plugin.exportTriggerJson(trigger);
-			Toolkit.getDefaultToolkit().getSystemClipboard()
-				.setContents(new StringSelection(json), null);
-			copyButton.setText("Copied!");
-			Timer timer = new Timer(1500, ev -> copyButton.setText("Copy to Clipboard"));
-			timer.setRepeats(false);
-			timer.start();
-		});
-		details.add(copyButton);
 
 		return details;
 	}
