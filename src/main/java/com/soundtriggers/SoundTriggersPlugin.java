@@ -28,8 +28,6 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 
 import javax.inject.Inject;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -424,7 +422,7 @@ public class SoundTriggersPlugin extends Plugin
 		{
 			audioPlayer.play(file, volumeLevelToGainDb(level));
 		}
-		catch (UnsupportedAudioFileException | IOException | LineUnavailableException e)
+		catch (Exception e)
 		{
 			log.warn("Sound Triggers: failed to play {}", path, e);
 		}
