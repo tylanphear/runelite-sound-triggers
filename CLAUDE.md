@@ -96,4 +96,4 @@ All three paths share the same 0–4 volume slider on the trigger; `playTrigger`
 
 1. Bump `version` in `runelite-plugin.properties`.
 2. Commit and push to this repo.
-3. Update the `commit` hash in `~/runelite-plugin-hub/plugins/sound-triggers` to the new HEAD, then commit and push that repo (branch `add-sound-triggers`).
+3. Update the `commit` hash in the plugin hub repo's `sound-triggers` entry to the new HEAD, then commit and push.
