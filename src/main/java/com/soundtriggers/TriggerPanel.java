@@ -28,7 +28,6 @@ import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import java.awt.AWTEvent;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -37,8 +36,6 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.FontMetrics;
-import java.awt.Toolkit;
-import java.awt.event.AWTEventListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusAdapter;
@@ -78,9 +75,7 @@ public class TriggerPanel extends JPanel
 	private final JTextField headerNameField;
 	private final JPanel detailsPanel;
 
-	private boolean renamingActive = false;
 	private String originalName;
-	private AWTEventListener globalCommitListener;
 
 	public TriggerPanel(SoundTrigger trigger, SoundTriggersPlugin plugin, SoundTriggersPanel parentPanel)
 	{
@@ -146,22 +141,11 @@ public class TriggerPanel extends JPanel
 		headerNameField.setBorder(BorderFactory.createEmptyBorder());
 		headerNameField.setFont(FontManager.getRunescapeSmallFont());
 		headerNameField.setToolTipText("Double-click to rename this trigger");
-		// The field is read-only until the user double-clicks it (see below); a
-		// single click toggles expand/collapse like the rest of the header.
 		headerNameField.setEditable(false);
+		headerNameField.setFocusable(false);
+		headerNameField.setHighlighter(null);
 		headerNameField.addFocusListener(new FocusAdapter()
 		{
-			@Override
-			public void focusGained(FocusEvent e)
-			{
-				if (PLACEHOLDER.equals(headerNameField.getText()))
-				{
-					headerNameField.setText("");
-					headerNameField.setForeground(Color.WHITE);
-				}
-				renamingActive = true;
-			}
-
 			@Override
 			public void focusLost(FocusEvent e)
 			{
@@ -176,17 +160,7 @@ public class TriggerPanel extends JPanel
 			@Override
 			public void actionPerformed(java.awt.event.ActionEvent e) { cancelRename(); }
 		});
-		headerNameField.getDocument().addDocumentListener(simpleListener(() ->
-		{
-			headerNameField.revalidate();
-			if (!renamingActive)
-			{
-				return;
-			}
-			String text = headerNameField.getText();
-			trigger.setName(PLACEHOLDER.equals(text) ? "" : text);
-			plugin.saveTriggers();
-		}));
+		headerNameField.getDocument().addDocumentListener(simpleListener(headerNameField::revalidate));
 
 		JButton deleteButton = new JButton("✕");
 		SwingUtil.removeButtonDecorations(deleteButton);
@@ -227,29 +201,31 @@ public class TriggerPanel extends JPanel
 		};
 		header.addMouseListener(toggleExpand);
 
-		// A single click on the name field behaves like the rest of the header
-		// (expand/collapse); a double-click switches it into an editable,
-		// focused field for renaming.
+		// Single click on the name field toggles expand/collapse; double click starts a rename.
+		// A timer separates the two: the single-click expand is deferred so a double click
+		// can cancel it before it fires.
+		Timer nameClickTimer = new Timer(200, e2 -> toggleExpand());
+		nameClickTimer.setRepeats(false);
 		headerNameField.addMouseListener(new MouseAdapter()
 		{
 			@Override
 			public void mouseClicked(MouseEvent e)
 			{
-				if (headerNameField.isEditable())
+				if (!SwingUtilities.isLeftMouseButton(e))
 				{
-					// Already editing: let clicks position the caret normally.
 					return;
 				}
-				if (e.getClickCount() >= 2)
+				if (e.getClickCount() == 2)
 				{
-					// Undo the expand/collapse the first click of this
-					// double-click already triggered, then begin editing.
-					toggleExpand();
-					beginRename();
+					nameClickTimer.stop();
+					if (!headerNameField.isEditable())
+					{
+						beginRename();
+					}
 				}
-				else
+				else if (e.getClickCount() == 1 && !headerNameField.isEditable())
 				{
-					toggleExpand();
+					nameClickTimer.restart();
 				}
 			}
 		});
@@ -288,31 +264,25 @@ public class TriggerPanel extends JPanel
 	}
 
 	/**
-	 * Switches the name field into editable, focused mode, as if the user had
-	 * double-clicked it. Used to drop a freshly added trigger straight into a
-	 * rename. Focus is requested on the EDT after the panel is laid out.
+	 * Switches the name field into editable, focused mode. Used by the double-click
+	 * handler and to drop a freshly created trigger straight into a rename.
 	 */
 	void beginRename()
 	{
-		deactivateRenameMode();
 		originalName = trigger.getName();
+		boolean hasName = originalName != null && !originalName.isEmpty();
+		if (!hasName)
+		{
+			headerNameField.setText("");
+			headerNameField.setForeground(Color.WHITE);
+		}
+		headerNameField.setHighlighter(new javax.swing.text.DefaultHighlighter());
+		headerNameField.setFocusable(true);
+		headerNameField.setEditable(true);
 		SwingUtilities.invokeLater(() ->
 		{
-			headerNameField.setEditable(true);
 			headerNameField.requestFocusInWindow();
-			globalCommitListener = event ->
-			{
-				if (event.getID() == MouseEvent.MOUSE_PRESSED)
-				{
-					Component source = ((MouseEvent) event).getComponent();
-					if (!SwingUtilities.isDescendingFrom(source, headerNameField))
-					{
-						SwingUtilities.invokeLater(this::commitRename);
-					}
-				}
-			};
-			Toolkit.getDefaultToolkit().addAWTEventListener(
-				globalCommitListener, AWTEvent.MOUSE_EVENT_MASK);
+			headerNameField.selectAll();
 		});
 	}
 
@@ -322,13 +292,22 @@ public class TriggerPanel extends JPanel
 		{
 			return;
 		}
-		deactivateRenameMode();
-		if (headerNameField.getText().isEmpty())
+		String text = headerNameField.getText().trim();
+		if (text.isEmpty())
 		{
+			trigger.setName(null);
 			headerNameField.setText(PLACEHOLDER);
 			headerNameField.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		}
+		else
+		{
+			trigger.setName(text);
+			headerNameField.setForeground(Color.WHITE);
+		}
+		plugin.saveTriggers();
 		headerNameField.setEditable(false);
+		headerNameField.setFocusable(false);
+		headerNameField.setHighlighter(null);
 	}
 
 	private void cancelRename()
@@ -337,30 +316,14 @@ public class TriggerPanel extends JPanel
 		{
 			return;
 		}
-		deactivateRenameMode();
 		trigger.setName(originalName);
 		plugin.saveTriggers();
 		boolean hasName = originalName != null && !originalName.isEmpty();
 		headerNameField.setText(hasName ? originalName : PLACEHOLDER);
 		headerNameField.setForeground(hasName ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
 		headerNameField.setEditable(false);
-	}
-
-	private void deactivateRenameMode()
-	{
-		renamingActive = false;
-		if (globalCommitListener != null)
-		{
-			Toolkit.getDefaultToolkit().removeAWTEventListener(globalCommitListener);
-			globalCommitListener = null;
-		}
-	}
-
-	@Override
-	public void removeNotify()
-	{
-		super.removeNotify();
-		deactivateRenameMode();
+		headerNameField.setFocusable(false);
+		headerNameField.setHighlighter(null);
 	}
 
 	// -------------------------------------------------------------------------
