@@ -656,6 +656,12 @@ public class TriggerPanel extends JPanel
 		builtinSection.setVisible(currentSource == SoundSource.BUILTIN);
 		customSection.setVisible(currentSource == SoundSource.CUSTOM);
 
+		JPanel volumeRow = buildVolumeRow();
+		boolean initiallyFile = trigger.getSoundSource() == SoundSource.FILE;
+		volumeRow.setEnabled(initiallyFile);
+		setChildrenEnabled(volumeRow, initiallyFile);
+		setChildrenToolTipText(volumeRow, initiallyFile ? null : "Built-ins use the game's sound effect volume");
+
 		JComboBox<SoundSource> sourceBox = makeEnumCombo(
 			SoundSource.values(), trigger.getSoundSource(), src ->
 			{
@@ -663,6 +669,10 @@ public class TriggerPanel extends JPanel
 				fileSection.setVisible(src == SoundSource.FILE);
 				builtinSection.setVisible(src == SoundSource.BUILTIN);
 				customSection.setVisible(src == SoundSource.CUSTOM);
+				boolean fileSource = src == SoundSource.FILE;
+				volumeRow.setEnabled(fileSource);
+				setChildrenEnabled(volumeRow, fileSource);
+				setChildrenToolTipText(volumeRow, fileSource ? null : "Built-ins use the game's sound effect volume");
 				parentPanel.refreshLayout();
 			});
 		sourceBox.setToolTipText("Where to get the sound from");
@@ -675,7 +685,7 @@ public class TriggerPanel extends JPanel
 		section.add(fileSection);
 		section.add(builtinSection);
 		section.add(customSection);
-		section.add(buildVolumeRow());
+		section.add(volumeRow);
 
 		return section;
 	}
@@ -805,7 +815,7 @@ public class TriggerPanel extends JPanel
 
 		int level = Math.min(4, Math.max(0, trigger.getVolume()));
 		JSlider slider = new JSlider(0, 4, level);
-		slider.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		slider.setBackground(ColorScheme.LIGHT_GRAY_COLOR);
 		slider.setSnapToTicks(true);
 		slider.setMajorTickSpacing(1);
 		slider.setPaintTicks(true);
@@ -839,6 +849,25 @@ public class TriggerPanel extends JPanel
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
+
+	private static void setChildrenEnabled(java.awt.Container container, boolean enabled)
+	{
+		for (java.awt.Component c : container.getComponents())
+		{
+			c.setEnabled(enabled);
+		}
+	}
+
+	private static void setChildrenToolTipText(java.awt.Container container, String tooltip)
+	{
+		for (java.awt.Component c : container.getComponents())
+		{
+			if (c instanceof javax.swing.JComponent)
+			{
+				((javax.swing.JComponent) c).setToolTipText(tooltip);
+			}
+		}
+	}
 
 	/**
 	 * Creates a two-column row: a right-aligned label on the left and a

@@ -5,7 +5,6 @@ import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
-import net.runelite.api.SoundEffectVolume;
 import net.runelite.api.GameState;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
@@ -393,7 +392,7 @@ public class SoundTriggersPlugin extends Plugin
 			{
 				return;
 			}
-			client.playSoundEffect(sound.getSoundId(), volumeLevelToSoundEffect(level));
+			client.playSoundEffect(sound.getSoundId());
 			return;
 		}
 
@@ -404,7 +403,7 @@ public class SoundTriggersPlugin extends Plugin
 			{
 				return;
 			}
-			client.playSoundEffect(soundId, volumeLevelToSoundEffect(level));
+			client.playSoundEffect(soundId);
 			return;
 		}
 
@@ -444,20 +443,7 @@ public class SoundTriggersPlugin extends Plugin
 		}
 	}
 
-	/** Maps a 0–4 volume level to a {@link net.runelite.api.SoundEffectVolume} constant. */
-	private static int volumeLevelToSoundEffect(int level)
-	{
-		switch (level)
-		{
-			case 0: return SoundEffectVolume.MUTED;
-			case 1: return SoundEffectVolume.LOW;
-			case 2: return SoundEffectVolume.MEDIUM_LOW;
-			case 3: return SoundEffectVolume.MEDIUM_HIGH;
-			default: return SoundEffectVolume.HIGH;
-		}
-	}
-
-	/** Draws a simple speaker icon programmatically — no external resource needed. */
+/** Draws a simple speaker icon programmatically — no external resource needed. */
 	private static BufferedImage buildIcon()
 	{
 		BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
