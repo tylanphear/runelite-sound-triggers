@@ -1,35 +1,39 @@
-# Sound Triggers
+## Sound Triggers
 
-Play your own sound whenever something happens in-game. Add a trigger, pick the
-event, point it at a WAV file, and you'll hear it the moment it fires. Add as
-many as you like and tweak each one's volume from the side panel.
+Play a custom sound when a specific event happens in-game. After enabling the
+plugin, open the Sound Triggers panel from the side bar to get started. From
+there you can add triggers: give it a name, pick an event type, configure its
+sound, and hear it the moment it fires. Each event is filterable. Stack as many
+triggers as you like.
 
-## Trigger on
+### Events
 
-- **Hitsplats** — any hit, or a specific amount of damage to you or others
-- **Item drops** — when a named item hits the ground
-- **Chat messages** — when a line contains a phrase you choose
-- **Players or NPCs** — when someone with a matching name comes into view
-- **Poison & venom** — when you get poisoned or it wears off
-- **Your stats** — when health, prayer, run energy, or special drops below (or
-  climbs above) a level you set
+- **Hitsplat** — fires on hitsplats, with the ability to narrow it down by
+  who's hit (self, others, or any), who dealt it (you, others, or any), what
+  kind it is (damage, block, heal, poison, venom, disease, burn, bleed, prayer
+  drain, or any), and optionally a damage value to match
+- **Item Drop** — fires when a matching item hits the ground.
+- **Chat Message** — fires when a chat line matches a given phrase.
+- **Player Seen** — fires when a matching player comes into view.
+- **NPC Seen** — fires when a matching NPC comes into view.
+- **Status Effect** — fires when you gain or lose status effects: poison,
+  venom, disease, etc.
+- **Player Stat** — fires when health, prayer, run energy, or special attack
+  crosses a threshold you set (drops below or rises above)
 
-Great for boss mechanics, drop alerts, AFK skilling, PKing heads-ups, or just
-hearing your favorite sound when you finally get that pet.
+### Sources
 
-## Usage
+Each trigger can play one of three kinds of sound:
 
-1. Open the **Sound Triggers** panel from the RuneLite side toolbar.
-2. Click **+ Add Trigger**.
-3. Choose the trigger type and fill in any filters (damage amount, item name,
-   phrase, stat threshold, and so on). Leave a filter blank to match anything.
-4. Browse to a **WAV** file and set the volume.
-5. Toggle the trigger on or off any time with its checkbox.
+- **File** — any WAV file on your disk; chosen with a file picker
+- **Built-in** — a built-in set of ~50 in-game sound effects (hits, prayers,
+  skilling sounds, GE sounds, etc.)
+- **Custom** — a raw in-game sound effect ID for anything not in the built-in
+  list (see [[https://oldschool.runescape.wiki/w/List_of_sound_IDs]])
 
-Triggers are saved automatically and persist across sessions.
+### Other features
 
-## Notes
+- Per-trigger enable/disable
+- Per-trigger volume control (0–4) for file sounds
 
-- Only WAV files are supported.
-- Sounds play through RuneLite's own audio system, and volume is set per
-  trigger.
+Sort of a spiritual successor to bwal96/twenty-one-plugin
