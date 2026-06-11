@@ -14,7 +14,6 @@ triggers as you like.
   drain, or any), and optionally a damage value to match
 - **Item Drop** — fires when a matching item hits the ground.
 - **Chat Message** — fires when a chat line matches a given phrase.
-- **Player Seen** — fires when a matching player comes into view.
 - **NPC Seen** — fires when a matching NPC comes into view.
 - **Status Effect** — fires when you gain or lose status effects: poison,
   venom, disease, etc.
@@ -29,7 +28,7 @@ Each trigger can play one of three kinds of sound:
 - **Built-in** — a built-in set of ~50 in-game sound effects (hits, prayers,
   skilling sounds, GE sounds, etc.)
 - **Custom** — a raw in-game sound effect ID for anything not in the built-in
-  list (see [[https://oldschool.runescape.wiki/w/List_of_sound_IDs]])
+  list (see https://oldschool.runescape.wiki/w/List_of_sound_IDs)
 
 ### Other features
 
