@@ -28,6 +28,7 @@ public class SoundTriggersPanel extends PluginPanel
 	private final SoundTriggersPlugin plugin;
 	private final ScrollablePanel triggersContainer;
 	private final JScrollPane scrollPane;
+	private final JPanel restrictedBanner;
 
 	/** When set, the rebuilt card for this trigger opens straight into a name edit. */
 	private SoundTrigger triggerToRename;
@@ -64,9 +65,20 @@ public class SoundTriggersPanel extends PluginPanel
 		buttonsRow.setAlignmentX(0.0f);
 		buttonsRow.add(addButton);
 
+		restrictedBanner = new JPanel(new BorderLayout());
+		restrictedBanner.setBackground(new Color(140, 80, 0));
+		restrictedBanner.setBorder(new EmptyBorder(5, 8, 5, 8));
+		JLabel bannerLabel = new JLabel("Sound triggers are disabled in this region.");
+		bannerLabel.setForeground(Color.WHITE);
+		bannerLabel.setFont(bannerLabel.getFont().deriveFont(Font.PLAIN, 11f));
+		restrictedBanner.add(bannerLabel, BorderLayout.CENTER);
+		restrictedBanner.setVisible(false);
+
 		header.add(title);
 		header.add(Box.createVerticalStrut(8));
 		header.add(buttonsRow);
+		header.add(Box.createVerticalStrut(8));
+		header.add(restrictedBanner);
 
 		// ---- Trigger list ----
 		triggersContainer = new ScrollablePanel();
@@ -111,6 +123,12 @@ public class SoundTriggersPanel extends PluginPanel
 		refreshLayout();
 		SwingUtilities.invokeLater(() ->
 			scrollPane.getVerticalScrollBar().setValue(savedScroll));
+	}
+
+	public void setRegionRestricted(boolean restricted)
+	{
+		restrictedBanner.setVisible(restricted);
+		refreshLayout();
 	}
 
 	void refreshLayout()

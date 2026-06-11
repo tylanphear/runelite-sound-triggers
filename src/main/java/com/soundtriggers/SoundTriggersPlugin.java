@@ -9,6 +9,7 @@ import net.runelite.api.GameState;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameStateChanged;
@@ -78,6 +79,8 @@ public class SoundTriggersPlugin extends Plugin
 	private int lastPoisonVarbit = 0;
 	private int lastDiseaseVarbit = 0;
 
+	private boolean inRestrictedRegion = false;
+
 	/** Per-trigger runtime state for PLAYER_STAT triggers, keyed by trigger id. */
 	private final Map<String, StatTriggerState> statStates = new HashMap<>();
 	/**
@@ -93,6 +96,7 @@ public class SoundTriggersPlugin extends Plugin
 		lastPoisonVarbit = client.getVarpValue(VarPlayerID.POISON);
 		lastDiseaseVarbit = client.getVarpValue(VarPlayerID.DISEASE);
 		statsPrimed = false;
+		inRestrictedRegion = false;
 		loadTriggers();
 
 		SwingUtilities.invokeLater(() ->
@@ -237,6 +241,7 @@ public class SoundTriggersPlugin extends Plugin
 		if (event.getGameState() != GameState.LOGGED_IN)
 		{
 			statsPrimed = false;
+			setRegionRestricted(false);
 		}
 	}
 
@@ -246,6 +251,13 @@ public class SoundTriggersPlugin extends Plugin
 		if (client.getGameState() != GameState.LOGGED_IN)
 		{
 			return;
+		}
+
+		Player local = client.getLocalPlayer();
+		if (local != null)
+		{
+			WorldPoint loc = local.getWorldLocation();
+			setRegionRestricted(loc != null && RestrictedRegion.isRestricted(loc.getRegionID()));
 		}
 
 		boolean prime = !statsPrimed;
@@ -358,8 +370,27 @@ public class SoundTriggersPlugin extends Plugin
 		triggers = TriggerStore.parse(gson, json);
 	}
 
+	private void setRegionRestricted(boolean restricted)
+	{
+		if (restricted == inRestrictedRegion)
+		{
+			return;
+		}
+		inRestrictedRegion = restricted;
+		SoundTriggersPanel p = panel;
+		if (p != null)
+		{
+			SwingUtilities.invokeLater(() -> p.setRegionRestricted(restricted));
+		}
+	}
+
 	private void playTrigger(SoundTrigger trigger)
 	{
+		if (inRestrictedRegion)
+		{
+			return;
+		}
+
 		int level = Math.min(4, Math.max(0, trigger.getVolume()));
 
 		if (trigger.getSoundSource() == SoundSource.BUILTIN)
