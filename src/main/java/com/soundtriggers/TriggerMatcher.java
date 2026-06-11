@@ -84,16 +84,6 @@ final class TriggerMatcher
 		return matches(message, trigger.getChatPattern(), trigger.getChatPatternMatchMode());
 	}
 
-	static boolean matchesPlayerSpawn(SoundTrigger trigger, String playerName)
-	{
-		if (!trigger.isEnabled() || trigger.getType() != TriggerType.PLAYER_SEEN)
-		{
-			return false;
-		}
-
-		return matches(playerName, trigger.getPlayerName(), trigger.getPlayerNameMatchMode());
-	}
-
 	static boolean matchesNpcSpawn(SoundTrigger trigger, String npcName)
 	{
 		if (!trigger.isEnabled() || trigger.getType() != TriggerType.NPC_SEEN)

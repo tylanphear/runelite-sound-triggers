@@ -357,13 +357,12 @@ public class TriggerPanel extends JPanel
 		JPanel hitsplatSection = buildHitsplatSection();
 		JPanel itemSection = buildItemSection();
 		JPanel chatSection = buildChatSection();
-		JPanel playerSeenSection = buildPlayerSeenSection();
 		JPanel npcSeenSection = buildNpcSeenSection();
 		JPanel statusEffectSection = buildStatusEffectSection();
 		JPanel playerStatSection = buildPlayerStatSection();
 
 		updateSectionVisibility(hitsplatSection, itemSection, chatSection,
-			playerSeenSection, npcSeenSection, statusEffectSection, playerStatSection,
+			npcSeenSection, statusEffectSection, playerStatSection,
 			trigger.getType());
 
 		typeBox.addActionListener(e ->
@@ -376,7 +375,7 @@ public class TriggerPanel extends JPanel
 			trigger.setType(selected);
 			plugin.saveTriggers();
 			updateSectionVisibility(hitsplatSection, itemSection, chatSection,
-				playerSeenSection, npcSeenSection, statusEffectSection, playerStatSection,
+				npcSeenSection, statusEffectSection, playerStatSection,
 				selected);
 			parentPanel.refreshLayout();
 		});
@@ -384,7 +383,6 @@ public class TriggerPanel extends JPanel
 		details.add(hitsplatSection);
 		details.add(itemSection);
 		details.add(chatSection);
-		details.add(playerSeenSection);
 		details.add(npcSeenSection);
 		details.add(statusEffectSection);
 		details.add(playerStatSection);
@@ -393,12 +391,11 @@ public class TriggerPanel extends JPanel
 	}
 
 	private void updateSectionVisibility(JPanel hitsplat, JPanel item, JPanel chat,
-		JPanel playerSeen, JPanel npcSeen, JPanel statusEffect, JPanel playerStat, TriggerType type)
+		JPanel npcSeen, JPanel statusEffect, JPanel playerStat, TriggerType type)
 	{
 		hitsplat.setVisible(type == TriggerType.HITSPLAT);
 		item.setVisible(type == TriggerType.ITEM_DROP);
 		chat.setVisible(type == TriggerType.CHAT_MESSAGE);
-		playerSeen.setVisible(type == TriggerType.PLAYER_SEEN);
 		npcSeen.setVisible(type == TriggerType.NPC_SEEN);
 		statusEffect.setVisible(type == TriggerType.STATUS_EFFECT);
 		playerStat.setVisible(type == TriggerType.PLAYER_STAT);
@@ -504,38 +501,6 @@ public class TriggerPanel extends JPanel
 		section.add(makeRow("Match", matchBox));
 		section.add(Box.createVerticalStrut(4));
 		section.add(patternRow);
-		section.add(Box.createVerticalStrut(4));
-		return section;
-	}
-
-	private JPanel buildPlayerSeenSection()
-	{
-		JPanel section = new JPanel();
-		section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
-		section.setBackground(ColorScheme.DARK_GRAY_COLOR);
-
-		JTextField field = new JTextField(trigger.getPlayerName() != null ? trigger.getPlayerName() : "");
-		styleTextField(field);
-		field.setToolTipText("Leave blank to match any player");
-		bindNullableText(field, trigger::setPlayerName);
-
-		JComboBox<MatchMode> matchBox = makeMatchModeBox(trigger.getPlayerNameMatchMode(), trigger::setPlayerNameMatchMode);
-
-		JPanel nameRow = makeRow("Name", field);
-		nameRow.setVisible(trigger.getPlayerNameMatchMode() != MatchMode.ANY);
-		matchBox.addActionListener(e ->
-		{
-			MatchMode selected = (MatchMode) matchBox.getSelectedItem();
-			if (selected != null)
-			{
-				nameRow.setVisible(selected != MatchMode.ANY);
-				parentPanel.refreshLayout();
-			}
-		});
-
-		section.add(makeRow("Match", matchBox));
-		section.add(Box.createVerticalStrut(4));
-		section.add(nameRow);
 		section.add(Box.createVerticalStrut(4));
 		return section;
 	}

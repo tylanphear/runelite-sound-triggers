@@ -286,15 +286,6 @@ public class TriggerMatcherTest
 	}
 
 	@Test
-	public void playerSpawnFilterIsCaseInsensitive()
-	{
-		SoundTrigger t = trigger(TriggerType.PLAYER_SEEN);
-		t.setPlayerName("zezima");
-		assertTrue(TriggerMatcher.matchesPlayerSpawn(t, "Zezima"));
-		assertFalse(TriggerMatcher.matchesPlayerSpawn(t, "Durial321"));
-	}
-
-	@Test
 	public void containsModeMatchesPartialName()
 	{
 		SoundTrigger t = trigger(TriggerType.NPC_SEEN);
@@ -313,16 +304,6 @@ public class TriggerMatcherTest
 		// Case-insensitive but the whole name must match.
 		assertTrue(TriggerMatcher.matchesNpcSpawn(t, "Goblin"));
 		assertFalse(TriggerMatcher.matchesNpcSpawn(t, "Cave goblin"));
-	}
-
-	@Test
-	public void exactModePlayerNameRequiresWholeName()
-	{
-		SoundTrigger t = trigger(TriggerType.PLAYER_SEEN);
-		t.setPlayerName("zezima");
-		t.setPlayerNameMatchMode(MatchMode.EXACT);
-		assertTrue(TriggerMatcher.matchesPlayerSpawn(t, "Zezima"));
-		assertFalse(TriggerMatcher.matchesPlayerSpawn(t, "Zezima123"));
 	}
 
 	@Test

@@ -40,12 +40,6 @@ public class SoundTrigger
 	/** Whether {@link #chatPattern} is matched as a substring or exactly. */
 	private MatchMode chatPatternMatchMode = MatchMode.EXACT;
 
-	// PLAYER_SEEN fields
-	/** Player name to match; null means match any player. Interpreted per {@link #playerNameMatchMode}. */
-	private String playerName = null;
-	/** Whether {@link #playerName} is matched as a substring or exactly. */
-	private MatchMode playerNameMatchMode = MatchMode.EXACT;
-
 	// NPC_SEEN fields
 	/** NPC name to match; null means match any NPC. Interpreted per {@link #npcNameMatchMode}. */
 	private String npcName = null;

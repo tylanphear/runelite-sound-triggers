@@ -16,7 +16,6 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.ItemSpawned;
 import net.runelite.api.events.NpcSpawned;
-import net.runelite.api.events.PlayerSpawned;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.config.ConfigManager;
@@ -162,26 +161,6 @@ public class SoundTriggersPlugin extends Plugin
 		for (SoundTrigger trigger : new ArrayList<>(triggers))
 		{
 			if (TriggerMatcher.matchesChat(trigger, message))
-			{
-				playTrigger(trigger);
-			}
-		}
-	}
-
-	@Subscribe
-	public void onPlayerSpawned(PlayerSpawned event)
-	{
-		Player player = event.getPlayer();
-		if (player == client.getLocalPlayer())
-		{
-			return;
-		}
-
-		String name = player.getName();
-
-		for (SoundTrigger trigger : new ArrayList<>(triggers))
-		{
-			if (TriggerMatcher.matchesPlayerSpawn(trigger, name))
 			{
 				playTrigger(trigger);
 			}
